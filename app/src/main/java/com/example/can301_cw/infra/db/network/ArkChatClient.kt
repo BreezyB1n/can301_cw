@@ -1,5 +1,7 @@
-package com.example.can301_cw.network
+package com.example.can301_cw.infra.db.network
 
+import android.content.Context
+import com.example.can301_cw.R
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -21,11 +23,34 @@ object ArkChatClient {
      * content: 文本或 base64(当 isImage=true 时)。
      */
     fun chatWithImageUrl(
+        context: Context,
         tags: List<String>,
         content: String,
         isImage: Boolean,
         modelId: String = "doubao-seed-1-6-vision-250815",
-        apiKey: String = ARK_API_KEY,
+        apiKeyResId: Int = R.string.ARK_API_KEY,
+        baseUrl: String = DEFAULT_BASE_URL
+    ): Result<String> {
+        val apiKey = context.getString(apiKeyResId)
+        return chatWithImageUrl(
+            tags = tags,
+            content = content,
+            isImage = isImage,
+            modelId = modelId,
+            apiKey = apiKey,
+            baseUrl = baseUrl
+        )
+    }
+
+    /**
+     * 直接传入 apiKey 的版本，便于测试或自定义密钥来源。
+     */
+    fun chatWithImageUrl(
+        tags: List<String>,
+        content: String,
+        isImage: Boolean,
+        modelId: String = "doubao-seed-1-6-vision-250815",
+        apiKey: String,
         baseUrl: String = DEFAULT_BASE_URL
     ): Result<String> {
         if (content.isBlank()) return Result.failure(IllegalArgumentException("content is blank"))

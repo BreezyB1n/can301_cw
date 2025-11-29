@@ -1,5 +1,7 @@
 package com.example.can301_cw.network
 
+import com.example.can301_cw.infra.db.network.ARK_API_KEY
+import com.example.can301_cw.infra.db.network.ArkChatClient
 import org.junit.Test
 
 class ArkChatClientTest {
@@ -9,7 +11,8 @@ class ArkChatClientTest {
         val result = ArkChatClient.chatWithImageUrl(
             tags = listOf("测试", "1"),
             content = "测试",
-            isImage = false
+            isImage = false,
+            apiKey = ARK_API_KEY
         )
 
         result.onSuccess { println("schema success: $it") }
@@ -24,7 +27,8 @@ class ArkChatClientTest {
         val result = ArkChatClient.chatWithImageUrl(
             tags = listOf("图片", "测试"),
             content = imageUrl,
-            isImage = true
+            isImage = true,
+            apiKey = ARK_API_KEY
         )
 
         result.onSuccess { println("schema (image) success: $it") }
