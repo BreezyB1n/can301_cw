@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,14 +24,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,20 +46,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-
-// Data Models
-data class MemoItem(
-    val id: Int,
-    val date: String,
-    val title: String,
-    val description: String,
-    val tags: List<String>,
-    val time: String,
-    val hasImage: Boolean = true,
-    val imageWidth: Int = 0,
-    val imageHeight: Int = 0
-)
+import com.example.can301_cw.model.MemoItem
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) {
@@ -66,31 +57,30 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     val memoGroups = listOf(
         "11月17日" to listOf(
             MemoItem(
-                1, "11月17日", "Chino的用户页面",
-                "这是Chino的用户页面，展示了其个人信息、好友编号SW-3802-1832-7999、以及最近的游戏记录，包括《双人成行》、《塞尔达传说 旷野之息》和《LEGO® Worlds》。页面还提供了好友列表、添加好友、邀请和用户设置等功能选项。",
-                listOf("用户资料", "游戏记录", "游戏", "Nintendo Switch", "娱乐"),
-                "21:19",
-                hasImage = true,
-                imageWidth = 1920,
-                imageHeight = 1080 // Landscape -> Vertical Layout
+                id = "2",
+                title = "Chino的用户页面",
+                recognizedText = "这是Chino的用户页面，展示了其个人信息、好友编号SW-3802-1832-7999、以及最近的游戏记录，包括《双人成行》、《塞尔达传说 旷野之息》和《LEGO® Worlds》。页面还提供了好友列表、添加好友、邀请和用户设置等功能选项。",
+                tags = mutableListOf("用户资料", "游戏记录", "游戏", "Nintendo Switch", "娱乐"),
+                createdAt = Date(), // Mock date
+                imageData = ByteArray(1) // Mock image presence
             ),
             MemoItem(
-                3, "11月17日", "购物小票",
-                "超市购物清单：牛奶、面包、鸡蛋、苹果。总计：¥45.50。",
-                listOf("购物", "账单"),
-                "18:30",
-                hasImage = true,
-                imageWidth = 600,
-                imageHeight = 1000 // Portrait -> Horizontal Layout
+                id = "1",
+                title = "购物小票",
+                recognizedText = "超市购物清单：牛奶、面包、鸡蛋、苹果。总计：¥45.50。",
+                tags = mutableListOf("购物", "账单"),
+                createdAt = Date(), // Mock date
+                imageData = ByteArray(1) // Mock image presence
             )
         ),
         "10月20日" to listOf(
             MemoItem(
-                2, "10月20日", "硕士申请项目确定会议",
-                "关于硕士申请项目的初步讨论，确定了主要方向和时间表。",
-                listOf("申请", "会议", "计划"),
-                "14:30",
-                hasImage = false
+                id = "3",
+                title = "硕士申请项目确定会议",
+                recognizedText = "关于硕士申请项目的初步讨论，确定了主要方向和时间表。",
+                tags = mutableListOf("申请", "会议", "计划"),
+                createdAt = Date(), // Mock date
+                imageData = null
             )
         )
     )
@@ -271,22 +261,22 @@ fun DateHeader(date: String) {
             color = Color.Black
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Divider(
+        HorizontalDivider(
             modifier = Modifier.weight(1f),
-            color = Color.LightGray,
-            thickness = 1.dp
+            thickness = 1.dp,
+            color = Color.LightGray
         )
     }
 }
 
 @Composable
 fun MemoCard(item: MemoItem) {
-    // Determine if it's a portrait image based on aspect ratio < 0.85
-    val isPortrait = if (item.hasImage && item.imageHeight > 0) {
-        (item.imageWidth.toFloat() / item.imageHeight.toFloat()) < 0.85f
-    } else {
-        false
-    }
+    val hasImage = item.imageData != null && item.imageData!!.isNotEmpty()
+    // Determine if it's a portrait image. Since we don't have image dimensions in the model yet,
+    // we'll default to false (Landscape) for this mock.
+    // For the demo, we'll treat item with id "1" as portrait (Horizontal Layout),
+    // and others as landscape (Vertical Layout) if they have images.
+    val isPortrait = item.id == "1" 
 
     Card(
         modifier = Modifier
@@ -299,7 +289,7 @@ fun MemoCard(item: MemoItem) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            if (item.hasImage) {
+            if (hasImage) {
                 if (isPortrait) {
                     // Horizontal Layout (Image Left, Content Right)
                     Row(
@@ -310,7 +300,7 @@ fun MemoCard(item: MemoItem) {
                         MemoImage(
                             modifier = Modifier
                                 .width(120.dp)
-                                .aspectRatio(item.imageWidth.toFloat() / item.imageHeight.toFloat())
+                                .aspectRatio(0.75f) // 3:4 aspect ratio
                                 .clip(RoundedCornerShape(12.dp))
                         )
                         
@@ -326,7 +316,7 @@ fun MemoCard(item: MemoItem) {
                     MemoImage(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(16f / 9f) // Or calculate based on actual ratio
+                            .aspectRatio(16f / 9f) // 16:9 aspect ratio
                             .clip(RoundedCornerShape(12.dp))
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -386,49 +376,57 @@ fun MemoImage(modifier: Modifier = Modifier) {
 fun MemoTextContent(item: MemoItem) {
     Column {
         // Title
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = Color.Black
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+        if (item.title.isNotEmpty()) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color.Black
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
-        // Description
-        Text(
-            text = item.description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.DarkGray,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis
-        )
+        // Description (Recognized Text)
+        val description = if (item.recognizedText.isNotEmpty()) item.recognizedText else item.userInputText
+        if (description.isNotEmpty()) {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.DarkGray,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MemoBottomInfo(item: MemoItem) {
     // Tags and Time
+    val timeString = SimpleDateFormat("HH:mm", Locale.getDefault()).format(item.createdAt)
+    
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom
     ) {
-        Row(
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.weight(1f, fill = false)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
         ) {
-            // We only show a few tags to fit
-            item.tags.take(3).forEach { tag ->
+            item.tags.forEach { tag ->
                 TagChip(tag)
-            }
-            if (item.tags.size > 3) {
-                TagChip("...")
             }
         }
         
+        Spacer(modifier = Modifier.width(8.dp))
+
         Text(
-            text = item.time,
+            text = timeString,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = Color.Gray,
+            modifier = Modifier.padding(bottom = 4.dp)
         )
     }
 }
