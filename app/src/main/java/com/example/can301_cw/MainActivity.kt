@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.can301_cw.ui.home.HomeScreen
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
 class MainActivity : ComponentActivity() {
@@ -51,21 +53,21 @@ data class BottomNavItem(
 fun MainScreen() {
     var selectedItem by remember { mutableIntStateOf(0) }
     val items = listOf(
-        BottomNavItem("Home", Icons.Filled.Home),
-        BottomNavItem("Profile", Icons.Filled.Person),
-        BottomNavItem("Settings", Icons.Filled.Settings)
+        BottomNavItem("Memo", Icons.Filled.Home),
+        BottomNavItem("Intents", Icons.Filled.DateRange),
+        BottomNavItem("Category", Icons.AutoMirrored.Filled.List),
+        BottomNavItem("Account", Icons.Filled.AccountCircle)
     )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             NavigationBar(
-                modifier = Modifier.height(82.dp)
+                modifier = Modifier.height(72.dp)
             ) {
                 items.forEachIndexed { index, item ->
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.name) },
-                        label = { Text(item.name) },
                         selected = selectedItem == index,
                         onClick = { selectedItem = index }
                     )
@@ -73,10 +75,14 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        ContentScreen(
-            text = "This is ${items[selectedItem].name} Screen",
-            modifier = Modifier.padding(innerPadding)
-        )
+        if (selectedItem == 0) {
+            HomeScreen(modifier = Modifier.padding(innerPadding))
+        } else {
+            ContentScreen(
+                text = "This is ${items[selectedItem].name} Screen",
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
     }
 }
 
