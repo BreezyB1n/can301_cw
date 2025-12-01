@@ -35,18 +35,62 @@ import com.example.can301_cw.ui.settings.SettingsScreen
 import com.example.can301_cw.ui.theme.AppTheme
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.viewModels
+import com.example.can301_cw.model.MemoItem
+import com.example.can301_cw.ui.home.HomeViewModel
+import java.util.Date
+
 class MainActivity : ComponentActivity() {
+    private val homeViewModel by viewModels<HomeViewModel>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        handleIntent(intent)
+
         enableEdgeToEdge()
         setContent {
             var appTheme by remember { mutableStateOf(AppTheme.Blue) }
             
             CAN301_CWTheme(appTheme = appTheme) {
                 MainScreen(
+                    homeViewModel = homeViewModel,
                     currentTheme = appTheme,
                     onThemeChange = { appTheme = it }
                 )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
+            @Suppress("DEPRECATION")
+            (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)?.let { imageUri ->
+                try {
+                    val inputStream = contentResolver.openInputStream(imageUri)
+                    val bytes = inputStream?.readBytes()
+                    inputStream?.close()
+
+                    if (bytes != null) {
+                        val newItem = MemoItem(
+                            imageData = bytes,
+                            createdAt = Date(),
+                            title = "Shared Image",
+                            recognizedText = "Shared from external app",
+                            tags = mutableListOf("Shared")
+                        )
+                        homeViewModel.addMemoItem(newItem)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
@@ -59,6 +103,7 @@ data class BottomNavItem(
 
 @Composable
 fun MainScreen(
+    homeViewModel: HomeViewModel,
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {}
 ) {
@@ -89,7 +134,7 @@ fun MainScreen(
     ) { innerPadding ->
         Box() {
             when (selectedItem) {
-                0 -> HomeScreen()
+                0 -> HomeScreen(viewModel = homeViewModel)
                 3 -> SettingsScreen(
                     currentTheme = currentTheme,
                     onThemeChange = onThemeChange
@@ -119,6 +164,6 @@ fun ContentScreen(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun MainScreenPreview() {
     CAN301_CWTheme {
-        MainScreen()
+        MainScreen(homeViewModel = HomeViewModel())
     }
 }
