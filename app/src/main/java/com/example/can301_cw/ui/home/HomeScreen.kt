@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.asImageBitmap
@@ -273,11 +274,26 @@ fun DateHeader(date: String) {
 @Composable
 fun MemoCard(item: MemoItem) {
     val hasImage = item.imageData != null && item.imageData!!.isNotEmpty()
-    // Determine if it's a portrait image. Since we don't have image dimensions in the model yet,
-    // we'll default to false (Landscape) for this mock.
-    // For the demo, we'll treat item with id "1" as portrait (Horizontal Layout),
-    // and others as landscape (Vertical Layout) if they have images.
-    val isPortrait = item.id == "1" 
+    val imageAspectRatio = remember(item.imageData) {
+        if (hasImage) {
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeByteArray(item.imageData, 0, item.imageData!!.size, options)
+            if (options.outWidth > 0 && options.outHeight > 0) {
+                options.outWidth.toFloat() / options.outHeight.toFloat()
+            } else {
+                1f // Default if decode fails
+            }
+        } else {
+            1f
+        }
+    }
+    
+    // Decide layout based on aspect ratio
+    // Portrait (ratio < 1) -> Horizontal Layout (Image Left, Content Right)
+    // Landscape (ratio >= 1) -> Vertical Layout (Image Top, Content Bottom)
+    val isPortrait = imageAspectRatio < 1f
 
     Card(
         modifier = Modifier
@@ -302,7 +318,7 @@ fun MemoCard(item: MemoItem) {
                             imageData = item.imageData,
                             modifier = Modifier
                                 .width(120.dp)
-                                .aspectRatio(0.75f) // 3:4 aspect ratio
+                                .aspectRatio(imageAspectRatio.coerceIn(0.5f, 1.0f)) // Constrain aspect ratio for list view
                                 .clip(RoundedCornerShape(12.dp))
                         )
                         
@@ -319,7 +335,7 @@ fun MemoCard(item: MemoItem) {
                         imageData = item.imageData,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(16f / 9f) // 16:9 aspect ratio
+                            .aspectRatio(imageAspectRatio.coerceIn(1.0f, 2.0f)) // Constrain aspect ratio
                             .clip(RoundedCornerShape(12.dp))
                     )
                     Spacer(modifier = Modifier.height(12.dp))

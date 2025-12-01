@@ -1,12 +1,16 @@
 package com.example.can301_cw.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import java.util.UUID
 import java.util.Date
 
 /**
  * Data model for MemoItem, corresponding to iOS MemoItemModel.
  */
+@Entity(tableName = "memos")
 data class MemoItem(
+    @PrimaryKey
     val id: String = UUID.randomUUID().toString(),
     var imageData: ByteArray? = null,
     var recognizedText: String = "",

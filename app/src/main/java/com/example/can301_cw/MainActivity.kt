@@ -38,12 +38,17 @@ import com.example.can301_cw.ui.theme.CAN301_CWTheme
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.viewModels
+import com.example.can301_cw.data.AppDatabase
+import com.example.can301_cw.data.FakeMemoDao
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.home.HomeViewModel
 import java.util.Date
 
 class MainActivity : ComponentActivity() {
-    private val homeViewModel by viewModels<HomeViewModel>()
+    private val database by lazy { AppDatabase.getDatabase(this) }
+    private val homeViewModel by viewModels<HomeViewModel> {
+        HomeViewModel.Factory(database.memoDao())
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -164,6 +169,6 @@ fun ContentScreen(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun MainScreenPreview() {
     CAN301_CWTheme {
-        MainScreen(homeViewModel = HomeViewModel())
+        MainScreen(homeViewModel = HomeViewModel(FakeMemoDao()))
     }
 }
