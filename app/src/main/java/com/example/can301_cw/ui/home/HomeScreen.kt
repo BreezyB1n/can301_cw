@@ -66,12 +66,12 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val memoItems by viewModel.memoItems.collectAsState()
     HomeScreenContent(
         memoItems = memoItems,
-        modifier = modifier
+        modifier = modifier.fillMaxSize()
     )
 }
 
@@ -88,7 +88,8 @@ fun HomeScreenContent(
     }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             MediumTopAppBar(
                 title = {
@@ -161,9 +162,11 @@ fun HomeScreenContent(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background), // Use theme background
-            contentPadding = PaddingValues(bottom = 100.dp) // Space for bottom nav
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding()
+            )
         ) {
             // Search Bar Section
             item {
