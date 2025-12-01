@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,6 +31,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.can301_cw.ui.home.HomeScreen
+import com.example.can301_cw.ui.settings.SettingsScreen
+import com.example.can301_cw.ui.theme.AppTheme
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
 class MainActivity : ComponentActivity() {
@@ -37,8 +40,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            CAN301_CWTheme {
-                MainScreen()
+            var appTheme by remember { mutableStateOf(AppTheme.Blue) }
+            
+            CAN301_CWTheme(appTheme = appTheme) {
+                MainScreen(
+                    currentTheme = appTheme,
+                    onThemeChange = { appTheme = it }
+                )
             }
         }
     }
@@ -50,7 +58,10 @@ data class BottomNavItem(
 )
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    currentTheme: AppTheme = AppTheme.Blue,
+    onThemeChange: (AppTheme) -> Unit = {}
+) {
     var selectedItem by remember { mutableIntStateOf(0) }
     val items = listOf(
         BottomNavItem("Memo", Icons.Filled.Home),
@@ -63,7 +74,8 @@ fun MainScreen() {
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             NavigationBar(
-                modifier = Modifier.height(72.dp)
+                modifier = Modifier.height(72.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 items.forEachIndexed { index, item ->
                     NavigationBarItem(
@@ -75,13 +87,17 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        if (selectedItem == 0) {
-            HomeScreen()
-        } else {
-            ContentScreen(
-                text = "This is ${items[selectedItem].name} Screen",
-                modifier = Modifier.padding(innerPadding)
-            )
+        Box() {
+            when (selectedItem) {
+                0 -> HomeScreen()
+                3 -> SettingsScreen(
+                    currentTheme = currentTheme,
+                    onThemeChange = onThemeChange
+                )
+                else -> ContentScreen(
+                    text = "This is ${items[selectedItem].name} Screen"
+                )
+            }
         }
     }
 }

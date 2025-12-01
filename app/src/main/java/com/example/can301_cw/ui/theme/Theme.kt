@@ -27,6 +27,8 @@ private val LightColorScheme = lightColorScheme(
     tertiary = Pink40,
     background = BackgroundColor,
     surface = BackgroundColor,
+    surfaceContainer = BackgroundColor,
+    surfaceVariant = PurpleGrey40.copy(alpha = 0.3f)
 
     /* Other default colors to override
     background = Color(0xFFFFFBFE),
@@ -39,11 +41,46 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+private val BlueColorScheme = lightColorScheme(
+    primary = BluePrimary,
+    secondary = BlueSecondary,
+    tertiary = BlueTertiary,
+    background = BlueBackground,
+    surface = BlueSurface,
+    surfaceContainer = BlueSurface, // For TabBar/Navigation
+    surfaceVariant = BlueSecondary.copy(alpha = 0.3f) // For inactive states
+)
+
+private val YellowColorScheme = lightColorScheme(
+    primary = YellowPrimary,
+    secondary = YellowSecondary,
+    tertiary = YellowTertiary,
+    background = YellowBackground,
+    surface = YellowSurface,
+    surfaceContainer = YellowSurface,
+    surfaceVariant = YellowSecondary.copy(alpha = 0.3f)
+)
+
+private val GreenColorScheme = lightColorScheme(
+    primary = GreenPrimary,
+    secondary = GreenSecondary,
+    tertiary = GreenTertiary,
+    background = GreenBackground,
+    surface = GreenSurface,
+    surfaceContainer = GreenSurface,
+    surfaceVariant = GreenSecondary.copy(alpha = 0.3f)
+)
+
+enum class AppTheme {
+    Purple, Blue, Yellow, Green
+}
+
 @Composable
 fun CAN301_CWTheme(
+    appTheme: AppTheme = AppTheme.Purple,
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -51,9 +88,13 @@ fun CAN301_CWTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else -> when(appTheme) {
+            AppTheme.Blue -> BlueColorScheme
+            AppTheme.Yellow -> YellowColorScheme
+            AppTheme.Green -> GreenColorScheme
+            else -> LightColorScheme
+        }
     }
 
     val view = LocalView.current

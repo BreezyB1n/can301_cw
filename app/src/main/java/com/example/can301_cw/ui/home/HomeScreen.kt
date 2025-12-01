@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.can301_cw.model.MemoItem
+import com.example.can301_cw.ui.theme.CAN301_CWTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -457,7 +458,7 @@ fun TagChip(text: String) {
 @Preview
 @Composable
 fun HomeScreenPreview() {
-    MaterialTheme {
+    CAN301_CWTheme {
         HomeScreen()
     }
 }
