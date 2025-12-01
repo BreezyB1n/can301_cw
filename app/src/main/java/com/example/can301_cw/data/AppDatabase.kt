@@ -7,10 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.can301_cw.model.MemoItem
 
-@Database(entities = [MemoItem::class], version = 1, exportSchema = false)
+@Database(entities = [MemoItem::class, SettingsEntity::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun memoDao(): MemoDao
+    abstract fun settingsDao(): SettingsDao
 
     companion object {
         @Volatile
@@ -23,7 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "memo_database"
                 )
-                .fallbackToDestructiveMigration() // Useful for development
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

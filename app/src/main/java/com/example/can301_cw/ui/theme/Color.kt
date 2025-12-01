@@ -32,3 +32,14 @@ val GreenSecondary = Color(0xFF81C784)
 val GreenTertiary = Color(0xFFCDDC39)
 val GreenBackground = Color(0xFFF1F8F1)
 val GreenSurface = Color(0xFFF1F8F1)
+
+// Dark Theme
+val GreyPrimary = Color(0xFFB0BEC5)
+val GreySecondary = Color(0xFF78909C)
+val GreyTertiary = Color(0xFF546E7A)
+
+// Navigation Container Colors
+val BlueContainer = Color(0xFFBBDEFB)
+val YellowContainer = Color(0xFFFFF9C4)
+val GreenContainer = Color(0xFFC8E6C9)
+val DarkContainer = Color(0xFF455A64)

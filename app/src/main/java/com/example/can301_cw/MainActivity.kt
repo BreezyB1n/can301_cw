@@ -46,6 +46,7 @@ import com.example.can301_cw.data.FakeMemoDao
 import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.home.HomeViewModel
+import com.example.can301_cw.ui.profile.ProfileScreen
 import java.util.Date
 
 class MainActivity : ComponentActivity() {
@@ -144,13 +145,14 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        Box(modifier = if (selectedItem == 0) Modifier else Modifier.padding(innerPadding)) {
+        Box(modifier = if (selectedItem == 0 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
             when (selectedItem) {
                 0 -> HomeScreen(viewModel = homeViewModel)
-                3 -> SettingsScreen(
+                2 -> SettingsScreen(
                     currentTheme = currentTheme,
                     onThemeChange = onThemeChange
                 )
+                3 -> ProfileScreen()
                 else -> ContentScreen(
                     text = "This is ${items[selectedItem].name} Screen"
                 )

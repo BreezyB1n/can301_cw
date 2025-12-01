@@ -26,7 +26,6 @@ import com.example.can301_cw.ui.theme.AppTheme
 import com.example.can301_cw.ui.theme.BluePrimary
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 import com.example.can301_cw.ui.theme.GreenPrimary
-import com.example.can301_cw.ui.theme.Purple40
 import com.example.can301_cw.ui.theme.YellowPrimary
 
 @Composable
@@ -52,14 +51,7 @@ fun SettingsScreen(
         )
 
         ThemeOption(
-            name = "Purple (Default)",
-            color = Purple40,
-            selected = currentTheme == AppTheme.Purple,
-            onClick = { onThemeChange(AppTheme.Purple) }
-        )
-        
-        ThemeOption(
-            name = "Blue",
+            name = "Blue (Default)",
             color = BluePrimary,
             selected = currentTheme == AppTheme.Blue,
             onClick = { onThemeChange(AppTheme.Blue) }
@@ -120,7 +112,7 @@ fun ThemeOption(
 fun SettingsScreenPreview() {
     CAN301_CWTheme {
         SettingsScreen(
-            currentTheme = AppTheme.Purple,
+            currentTheme = AppTheme.Blue,
             onThemeChange = {}
         )
     }
