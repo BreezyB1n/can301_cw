@@ -76,7 +76,7 @@ fun MainScreen() {
         }
     ) { innerPadding ->
         if (selectedItem == 0) {
-            HomeScreen(modifier = Modifier.padding(innerPadding))
+            HomeScreen()
         } else {
             ContentScreen(
                 text = "This is ${items[selectedItem].name} Screen",

@@ -29,19 +29,24 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -51,8 +56,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+
     // Sample Data
     val memoGroups = listOf(
         "11月17日" to listOf(
@@ -85,108 +93,108 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         )
     )
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background), // Use theme background
-        contentPadding = PaddingValues(bottom = 100.dp) // Space for bottom nav
-    ) {
-        // Top Bar Section
-        item {
-            TopBarSection()
+    Scaffold(
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            MediumTopAppBar(
+                title = {
+                    Text(
+                        text = "Memo",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    Box(modifier = Modifier.padding(start = 16.dp, end = 8.dp)) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                IconButton(onClick = { /* TODO */ }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.DateRange,
+                                        contentDescription = "History",
+                                        tint = Color.Black
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            IconButton(onClick = { /* TODO */ }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = "Search",
+                                    tint = Color.Black
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            IconButton(onClick = { /* TODO */ }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = "Add",
+                                    tint = Color.Black
+                                )
+                            }
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                ),
+                scrollBehavior = scrollBehavior
+            )
         }
-
-        // Search Bar Section
-        item {
-            SearchBarSection()
-        }
-
-        // Status Card Section
-        item {
-            StatusCardSection()
-        }
-
-        // Memo List
-        memoGroups.forEach { (date, items) ->
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background), // Use theme background
+            contentPadding = PaddingValues(bottom = 100.dp) // Space for bottom nav
+        ) {
+            // Search Bar Section
             item {
-                DateHeader(date)
+                SearchBarSection()
             }
-            items(items) { memo ->
-                MemoCard(memo)
+
+            // Status Card Section
+            item {
+                StatusCardSection()
+            }
+
+            // Memo List
+            memoGroups.forEach { (date, items) ->
+                item {
+                    DateHeader(date)
+                }
+                items(items) { memo ->
+                    MemoCard(memo)
+                }
             }
         }
     }
 }
 
-@Composable
-fun TopBarSection() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = Color.White,
-            modifier = Modifier.size(40.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                IconButton(onClick = { /* TODO */ }) {
-                    Icon(
-                        imageVector = Icons.Outlined.DateRange, // Placeholder for the clock icon
-                        contentDescription = "History",
-                        tint = Color.Black
-                    )
-                }
-            }
-        }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = Color.White,
-                modifier = Modifier.size(40.dp)
-            ) {
-                IconButton(onClick = { /* TODO */ }) {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = "Search",
-                        tint = Color.Black
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-                shape = CircleShape,
-                color = Color.White,
-                modifier = Modifier.size(40.dp)
-            ) {
-                IconButton(onClick = { /* TODO */ }) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "Add",
-                        tint = Color.Black
-                    )
-                }
-            }
-        }
-    }
-
-    // "Memo" Title
-    Text(
-        text = "Memo",
-        style = MaterialTheme.typography.displayMedium.copy(
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        ),
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-    )
-}
 
 @Composable
 fun SearchBarSection() {
