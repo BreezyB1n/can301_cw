@@ -40,14 +40,16 @@ import android.net.Uri
 import androidx.activity.viewModels
 import com.example.can301_cw.data.AppDatabase
 import com.example.can301_cw.data.FakeMemoDao
+import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.home.HomeViewModel
 import java.util.Date
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
+    private val imageStorageManager by lazy { ImageStorageManager(this) }
     private val homeViewModel by viewModels<HomeViewModel> {
-        HomeViewModel.Factory(database.memoDao())
+        HomeViewModel.Factory(database.memoDao(), imageStorageManager)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -85,12 +87,13 @@ class MainActivity : ComponentActivity() {
 
                     if (bytes != null) {
                         val newItem = MemoItem(
-                            imageData = bytes,
                             createdAt = Date(),
                             title = "Shared Image",
                             recognizedText = "Shared from external app",
                             tags = mutableListOf("Shared")
-                        )
+                        ).apply {
+                            imageData = bytes
+                        }
                         homeViewModel.addMemoItem(newItem)
                     }
                 } catch (e: Exception) {
@@ -168,7 +171,8 @@ fun ContentScreen(text: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     CAN301_CWTheme {
-        MainScreen(homeViewModel = HomeViewModel(FakeMemoDao()))
+        MainScreen(homeViewModel = HomeViewModel(FakeMemoDao(), ImageStorageManager(context)))
     }
 }

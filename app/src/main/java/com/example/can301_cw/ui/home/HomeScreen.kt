@@ -495,17 +495,19 @@ fun HomeScreenPreview() {
                 title = "Chino的用户页面",
                 recognizedText = "这是Chino的用户页面，展示了其个人信息、好友编号SW-3802-1832-7999、以及最近的游戏记录，包括《双人成行》、《塞尔达传说 旷野之息》和《LEGO® Worlds》。页面还提供了好友列表、添加好友、邀请和用户设置等功能选项。",
                 tags = mutableListOf("用户资料", "游戏记录", "游戏", "Nintendo Switch", "娱乐"),
-                createdAt = Date(),
+                createdAt = Date()
+            ).apply {
                 imageData = ByteArray(1)
-            ),
+            },
             MemoItem(
                 id = "1",
                 title = "购物小票",
                 recognizedText = "超市购物清单：牛奶、面包、鸡蛋、苹果。总计：¥45.50。",
                 tags = mutableListOf("购物", "账单"),
-                createdAt = Date(),
+                createdAt = Date()
+            ).apply {
                 imageData = ByteArray(1)
-            )
+            }
         )
         HomeScreenContent(memoItems = memoItems)
     }
