@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.can301_cw.ui.category.CategoryScreen
 import com.example.can301_cw.ui.home.HomeScreen
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
@@ -77,6 +78,8 @@ fun MainScreen() {
     ) { innerPadding ->
         if (selectedItem == 0) {
             HomeScreen()
+        } else if (selectedItem == 2) {
+            CategoryScreen()
         } else {
             ContentScreen(
                 text = "This is ${items[selectedItem].name} Screen",
