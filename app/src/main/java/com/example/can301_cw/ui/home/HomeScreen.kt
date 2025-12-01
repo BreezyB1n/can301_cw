@@ -51,50 +51,45 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import android.graphics.BitmapFactory
 import com.example.can301_cw.model.MemoItem
+import com.example.can301_cw.ui.theme.CAN301_CWTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@Composable
+fun HomeScreen(
+    viewModel: HomeViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val memoItems by viewModel.memoItems.collectAsState()
+    HomeScreenContent(
+        memoItems = memoItems,
+        modifier = modifier.fillMaxSize()
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
+fun HomeScreenContent(
+    memoItems: List<MemoItem>,
+    modifier: Modifier = Modifier
+) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
-    // Sample Data
-    val memoGroups = listOf(
-        "11月17日" to listOf(
-            MemoItem(
-                id = "2",
-                title = "Chino的用户页面",
-                recognizedText = "这是Chino的用户页面，展示了其个人信息、好友编号SW-3802-1832-7999、以及最近的游戏记录，包括《双人成行》、《塞尔达传说 旷野之息》和《LEGO® Worlds》。页面还提供了好友列表、添加好友、邀请和用户设置等功能选项。",
-                tags = mutableListOf("用户资料", "游戏记录", "游戏", "Nintendo Switch", "娱乐"),
-                createdAt = Date(), // Mock date
-                imageData = ByteArray(1) // Mock image presence
-            ),
-            MemoItem(
-                id = "1",
-                title = "购物小票",
-                recognizedText = "超市购物清单：牛奶、面包、鸡蛋、苹果。总计：¥45.50。",
-                tags = mutableListOf("购物", "账单"),
-                createdAt = Date(), // Mock date
-                imageData = ByteArray(1) // Mock image presence
-            )
-        ),
-        "10月20日" to listOf(
-            MemoItem(
-                id = "3",
-                title = "硕士申请项目确定会议",
-                recognizedText = "关于硕士申请项目的初步讨论，确定了主要方向和时间表。",
-                tags = mutableListOf("申请", "会议", "计划"),
-                createdAt = Date(), // Mock date
-                imageData = null
-            )
-        )
-    )
+    val memoGroups = memoItems.groupBy {
+        SimpleDateFormat("MM月dd日", Locale.getDefault()).format(it.createdAt)
+    }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             MediumTopAppBar(
                 title = {
@@ -167,9 +162,11 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background), // Use theme background
-            contentPadding = PaddingValues(bottom = 100.dp) // Space for bottom nav
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding()
+            )
         ) {
             // Search Bar Section
             item {
@@ -280,11 +277,26 @@ fun DateHeader(date: String) {
 @Composable
 fun MemoCard(item: MemoItem) {
     val hasImage = item.imageData != null && item.imageData!!.isNotEmpty()
-    // Determine if it's a portrait image. Since we don't have image dimensions in the model yet,
-    // we'll default to false (Landscape) for this mock.
-    // For the demo, we'll treat item with id "1" as portrait (Horizontal Layout),
-    // and others as landscape (Vertical Layout) if they have images.
-    val isPortrait = item.id == "1" 
+    val imageAspectRatio = remember(item.imageData) {
+        if (hasImage) {
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            BitmapFactory.decodeByteArray(item.imageData, 0, item.imageData!!.size, options)
+            if (options.outWidth > 0 && options.outHeight > 0) {
+                options.outWidth.toFloat() / options.outHeight.toFloat()
+            } else {
+                1f // Default if decode fails
+            }
+        } else {
+            1f
+        }
+    }
+    
+    // Decide layout based on aspect ratio
+    // Portrait (ratio < 1) -> Horizontal Layout (Image Left, Content Right)
+    // Landscape (ratio >= 1) -> Vertical Layout (Image Top, Content Bottom)
+    val isPortrait = imageAspectRatio < 1f
 
     Card(
         modifier = Modifier
@@ -306,9 +318,10 @@ fun MemoCard(item: MemoItem) {
                     ) {
                         // Image
                         MemoImage(
+                            imageData = item.imageData,
                             modifier = Modifier
                                 .width(120.dp)
-                                .aspectRatio(0.75f) // 3:4 aspect ratio
+                                .aspectRatio(imageAspectRatio.coerceIn(0.5f, 1.0f)) // Constrain aspect ratio for list view
                                 .clip(RoundedCornerShape(12.dp))
                         )
                         
@@ -322,9 +335,10 @@ fun MemoCard(item: MemoItem) {
                 } else {
                     // Vertical Layout (Image Top, Content Bottom)
                     MemoImage(
+                        imageData = item.imageData,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(16f / 9f) // 16:9 aspect ratio
+                            .aspectRatio(imageAspectRatio.coerceIn(1.0f, 2.0f)) // Constrain aspect ratio
                             .clip(RoundedCornerShape(12.dp))
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -343,25 +357,45 @@ fun MemoCard(item: MemoItem) {
 }
 
 @Composable
-fun MemoImage(modifier: Modifier = Modifier) {
+fun MemoImage(imageData: ByteArray?, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.background(Color.LightGray), // Placeholder color
         contentAlignment = Alignment.Center
     ) {
-        // In a real app, use AsyncImage here
-        Image(
-            painter = ColorPainter(Color(0xFFEEEEEE)),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize()
-        )
-        // Simulated content inside the image
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Filled.Face,
+        if (imageData != null && imageData.isNotEmpty()) {
+            val bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Image(
+                    painter = ColorPainter(Color(0xFFEEEEEE)),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        } else {
+            Image(
+                painter = ColorPainter(Color(0xFFEEEEEE)),
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = Color.Gray
+                modifier = Modifier.fillMaxSize()
             )
+        }
+        
+        if (imageData == null || imageData.isEmpty()) {
+            // Simulated content inside the image
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Filled.Face,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = Color.Gray
+                )
+            }
         }
 
         // Cloud Icon at top right of image
@@ -457,7 +491,27 @@ fun TagChip(text: String) {
 @Preview
 @Composable
 fun HomeScreenPreview() {
-    MaterialTheme {
-        HomeScreen()
+    CAN301_CWTheme {
+        val memoItems = listOf(
+            MemoItem(
+                id = "2",
+                title = "Chino的用户页面",
+                recognizedText = "这是Chino的用户页面，展示了其个人信息、好友编号SW-3802-1832-7999、以及最近的游戏记录，包括《双人成行》、《塞尔达传说 旷野之息》和《LEGO® Worlds》。页面还提供了好友列表、添加好友、邀请和用户设置等功能选项。",
+                tags = mutableListOf("用户资料", "游戏记录", "游戏", "Nintendo Switch", "娱乐"),
+                createdAt = Date()
+            ).apply {
+                imageData = ByteArray(1)
+            },
+            MemoItem(
+                id = "1",
+                title = "购物小票",
+                recognizedText = "超市购物清单：牛奶、面包、鸡蛋、苹果。总计：¥45.50。",
+                tags = mutableListOf("购物", "账单"),
+                createdAt = Date()
+            ).apply {
+                imageData = ByteArray(1)
+            }
+        )
+        HomeScreenContent(memoItems = memoItems)
     }
 }

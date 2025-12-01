@@ -1,14 +1,19 @@
 package com.example.can301_cw.model
 
+import androidx.room.Entity
+import androidx.room.Ignore
+import androidx.room.PrimaryKey
 import java.util.UUID
 import java.util.Date
 
 /**
  * Data model for MemoItem, corresponding to iOS MemoItemModel.
  */
+@Entity(tableName = "memos")
 data class MemoItem(
+    @PrimaryKey
     val id: String = UUID.randomUUID().toString(),
-    var imageData: ByteArray? = null,
+    var imagePath: String? = null,
     var recognizedText: String = "",
     var userInputText: String = "",
     var title: String = "",
@@ -25,6 +30,9 @@ data class MemoItem(
     var apiProcessedAt: Date? = null,
     var hasAPIResponse: Boolean = false
 ) {
+    @Ignore
+    var imageData: ByteArray? = null
+
     // Helper to check equality similar to iOS areEqual
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -33,6 +41,7 @@ data class MemoItem(
         other as MemoItem
 
         if (id != other.id) return false
+        if (imagePath != other.imagePath) return false
         if (imageData != null) {
             if (other.imageData == null) return false
             if (!imageData.contentEquals(other.imageData)) return false
@@ -43,6 +52,7 @@ data class MemoItem(
 
     override fun hashCode(): Int {
         var result = id.hashCode()
+        result = 31 * result + (imagePath?.hashCode() ?: 0)
         result = 31 * result + (imageData?.contentHashCode() ?: 0)
         return result
     }

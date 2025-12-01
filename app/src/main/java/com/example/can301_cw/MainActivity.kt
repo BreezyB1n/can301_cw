@@ -4,10 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
@@ -22,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,15 +34,75 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.can301_cw.ui.home.HomeScreen
+import com.example.can301_cw.ui.settings.SettingsScreen
+import com.example.can301_cw.ui.theme.AppTheme
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.viewModels
+import com.example.can301_cw.data.AppDatabase
+import com.example.can301_cw.data.FakeMemoDao
+import com.example.can301_cw.data.ImageStorageManager
+import com.example.can301_cw.model.MemoItem
+import com.example.can301_cw.ui.home.HomeViewModel
+import com.example.can301_cw.ui.profile.ProfileScreen
+import java.util.Date
+
 class MainActivity : ComponentActivity() {
+    private val database by lazy { AppDatabase.getDatabase(this) }
+    private val imageStorageManager by lazy { ImageStorageManager(this) }
+    private val homeViewModel by viewModels<HomeViewModel> {
+        HomeViewModel.Factory(database.memoDao(), imageStorageManager)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        handleIntent(intent)
+
         enableEdgeToEdge()
         setContent {
-            CAN301_CWTheme {
-                MainScreen()
+            var appTheme by remember { mutableStateOf(AppTheme.Blue) }
+            
+            CAN301_CWTheme(appTheme = appTheme) {
+                MainScreen(
+                    homeViewModel = homeViewModel,
+                    currentTheme = appTheme,
+                    onThemeChange = { appTheme = it }
+                )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
+            @Suppress("DEPRECATION")
+            (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)?.let { imageUri ->
+                try {
+                    val inputStream = contentResolver.openInputStream(imageUri)
+                    val bytes = inputStream?.readBytes()
+                    inputStream?.close()
+
+                    if (bytes != null) {
+                        val newItem = MemoItem(
+                            createdAt = Date(),
+                            title = "Shared Image",
+                            recognizedText = "Shared from external app",
+                            tags = mutableListOf("Shared")
+                        ).apply {
+                            imageData = bytes
+                        }
+                        homeViewModel.addMemoItem(newItem)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
@@ -50,7 +114,11 @@ data class BottomNavItem(
 )
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    homeViewModel: HomeViewModel,
+    currentTheme: AppTheme = AppTheme.Blue,
+    onThemeChange: (AppTheme) -> Unit = {}
+) {
     var selectedItem by remember { mutableIntStateOf(0) }
     val items = listOf(
         BottomNavItem("Memo", Icons.Filled.Home),
@@ -59,11 +127,13 @@ fun MainScreen() {
         BottomNavItem("Account", Icons.Filled.AccountCircle)
     )
 
+    val navigationBarHeight = 60.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
+        Modifier.fillMaxSize(), bottomBar = {
             NavigationBar(
-                modifier = Modifier.height(72.dp)
+                modifier = Modifier.height(navigationBarHeight),
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 items.forEachIndexed { index, item ->
                     NavigationBarItem(
@@ -75,13 +145,18 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        if (selectedItem == 0) {
-            HomeScreen()
-        } else {
-            ContentScreen(
-                text = "This is ${items[selectedItem].name} Screen",
-                modifier = Modifier.padding(innerPadding)
-            )
+        Box(modifier = if (selectedItem == 0 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
+            when (selectedItem) {
+                0 -> HomeScreen(viewModel = homeViewModel)
+                2 -> SettingsScreen(
+                    currentTheme = currentTheme,
+                    onThemeChange = onThemeChange
+                )
+                3 -> ProfileScreen()
+                else -> ContentScreen(
+                    text = "This is ${items[selectedItem].name} Screen"
+                )
+            }
         }
     }
 }
@@ -102,7 +177,8 @@ fun ContentScreen(text: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
+    val context = androidx.compose.ui.platform.LocalContext.current
     CAN301_CWTheme {
-        MainScreen()
+        MainScreen(homeViewModel = HomeViewModel(FakeMemoDao(), ImageStorageManager(context)))
     }
 }
