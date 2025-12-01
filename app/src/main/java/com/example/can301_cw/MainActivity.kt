@@ -34,9 +34,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.can301_cw.ui.home.HomeScreen
-import com.example.can301_cw.ui.settings.SettingsScreen
 import com.example.can301_cw.ui.theme.AppTheme
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.example.can301_cw.data.SettingsRepository
+import com.example.can301_cw.ui.profile.DarkModeConfig
 
 import android.content.Intent
 import android.net.Uri
@@ -49,12 +54,17 @@ import com.example.can301_cw.ui.home.HomeViewModel
 import com.example.can301_cw.ui.profile.ProfileScreen
 import java.util.Date
 
+import androidx.compose.runtime.saveable.rememberSaveable
+
+import androidx.compose.runtime.LaunchedEffect
+
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
     private val homeViewModel by viewModels<HomeViewModel> {
         HomeViewModel.Factory(database.memoDao(), imageStorageManager)
     }
+    private val settingsRepository by lazy { SettingsRepository(database.settingsDao()) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,13 +73,51 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            var appTheme by remember { mutableStateOf(AppTheme.Blue) }
+            val themeColorName by settingsRepository.themeColor.collectAsState(initial = "Blue")
+            val darkModeConfigName by settingsRepository.darkModeConfig.collectAsState(initial = "FOLLOW_SYSTEM")
+            val lastSystemDarkMode by settingsRepository.lastSystemDarkMode.collectAsState(initial = null)
             
-            CAN301_CWTheme(appTheme = appTheme) {
+            val isSystemDark = isSystemInDarkTheme()
+            
+            LaunchedEffect(isSystemDark, lastSystemDarkMode) {
+                if (lastSystemDarkMode != null && lastSystemDarkMode != isSystemDark) {
+                    // System dark mode changed
+                    // Reset config to FOLLOW_SYSTEM
+                    settingsRepository.setDarkModeConfig(DarkModeConfig.FOLLOW_SYSTEM.name)
+                }
+                // Update last known state
+                if (lastSystemDarkMode != isSystemDark) {
+                    settingsRepository.setLastSystemDarkMode(isSystemDark)
+                }
+            }
+
+            val appTheme = try {
+                AppTheme.valueOf(themeColorName)
+            } catch (e: IllegalArgumentException) {
+                AppTheme.Blue
+            }
+            
+            val darkModeConfig = try {
+                DarkModeConfig.valueOf(darkModeConfigName)
+            } catch (e: IllegalArgumentException) {
+                DarkModeConfig.FOLLOW_SYSTEM
+            }
+
+            val darkTheme = when(darkModeConfig) {
+                DarkModeConfig.FOLLOW_SYSTEM -> isSystemDark
+                DarkModeConfig.LIGHT -> false
+                DarkModeConfig.DARK -> true
+            }
+            
+            CAN301_CWTheme(appTheme = appTheme, darkTheme = darkTheme) {
                 MainScreen(
                     homeViewModel = homeViewModel,
                     currentTheme = appTheme,
-                    onThemeChange = { appTheme = it }
+                    onThemeChange = { newTheme -> 
+                        lifecycleScope.launch {
+                            settingsRepository.setThemeColor(newTheme.name)
+                        }
+                    }
                 )
             }
         }
@@ -119,7 +167,7 @@ fun MainScreen(
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {}
 ) {
-    var selectedItem by remember { mutableIntStateOf(0) }
+    var selectedItem by rememberSaveable { mutableIntStateOf(0) }
     val items = listOf(
         BottomNavItem("Memo", Icons.Filled.Home),
         BottomNavItem("Intents", Icons.Filled.DateRange),
@@ -148,10 +196,6 @@ fun MainScreen(
         Box(modifier = if (selectedItem == 0 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
             when (selectedItem) {
                 0 -> HomeScreen(viewModel = homeViewModel)
-                2 -> SettingsScreen(
-                    currentTheme = currentTheme,
-                    onThemeChange = onThemeChange
-                )
                 3 -> ProfileScreen()
                 else -> ContentScreen(
                     text = "This is ${items[selectedItem].name} Screen"

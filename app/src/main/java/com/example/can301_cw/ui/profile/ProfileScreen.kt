@@ -19,9 +19,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
 import android.app.Application
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.can301_cw.model.UserStats
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
+
+import com.example.can301_cw.ui.theme.AppTheme
+import com.example.can301_cw.ui.theme.BluePrimary
+import com.example.can301_cw.ui.theme.GreenPrimary
+import com.example.can301_cw.ui.theme.YellowPrimary
+import androidx.compose.ui.graphics.Color
+import com.example.can301_cw.ui.theme.GreyPrimary
+
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.compositeOver
+
+import androidx.compose.foundation.isSystemInDarkTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +45,7 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val isSystemDark = isSystemInDarkTheme()
 
     // Dialog state for clearing history
     var showClearDialog by remember { mutableStateOf(false) }
@@ -70,9 +84,9 @@ fun ProfileScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(top = paddingValues.calculateTopPadding())
                 .verticalScroll(scrollState)
-                .padding(16.dp),
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // 0. User Info Header
@@ -86,22 +100,73 @@ fun ProfileScreen(
 
             // 2. Settings Sections
             SettingsSection(title = "Appearance") {
-                ListItem(
-                    headlineContent = { Text("Dark Theme") },
-                    supportingContent = { Text("Switch between light and dark mode") },
-                    leadingContent = {
-                        Icon(
-                            if (uiState.isDarkModeEnabled) Icons.Filled.Star else Icons.Filled.Face,
-                            contentDescription = "Theme Icon"
+                // Theme Color
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        text = "Theme Color",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        val themes = listOf(
+                            Triple(AppTheme.Blue, BluePrimary, "Blue"),
+                            Triple(AppTheme.Yellow, YellowPrimary, "Yellow"),
+                            Triple(AppTheme.Green, GreenPrimary, "Green")
                         )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = uiState.isDarkModeEnabled,
-                            onCheckedChange = { viewModel.setDarkModeEnabled(it) }
-                        )
+                        
+                        themes.forEach { (theme, color, label) ->
+                            ThemeColorOption(
+                                color = color,
+                                label = label,
+                                selected = uiState.currentTheme == theme,
+                                onClick = { viewModel.setTheme(theme) }
+                            )
+                        }
                     }
-                )
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                // Dark Mode
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(
+                        text = "Dark Mode",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                    
+                    val darkModeOptions = listOf(
+                        DarkModeConfig.FOLLOW_SYSTEM to "Follow System",
+                        DarkModeConfig.LIGHT to "Light",
+                        DarkModeConfig.DARK to "Dark"
+                    )
+                    
+                    darkModeOptions.forEach { (config, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.setDarkModeConfig(config) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (uiState.darkModeConfig == config) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             SettingsSection(title = "Notifications") {
@@ -278,9 +343,9 @@ fun StatisticsCard(stats: UserStats) {
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
+            StatItem(label = "Info Saved", value = stats.savedInformation)
             StatItem(label = "Pending", value = stats.pendingTasks)
             StatItem(label = "Completed", value = stats.completedTasks)
-            StatItem(label = "Time Saved", value = stats.timeSaved)
         }
     }
 }
@@ -324,22 +389,53 @@ fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) 
     }
 }
 
+@Composable
+fun ThemeColorOption(
+    color: Color,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp) // Smaller size
+                .clip(CircleShape)
+                .background(color)
+                .border(
+                    width = 2.dp,
+                    color = color.copy(alpha = 0.6f).compositeOver(Color.Black), // Slightly darker border
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "Selected",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(4.dp))
+        
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
     CAN301_CWTheme {
-        // We need to mock the ViewModel or provide a way to run this without the real DB
-        // Since we cannot easily mock the ViewModel class directly without an interface or open class modifications for preview,
-        // and our ProfileScreen takes a concrete ProfileViewModel.kt which requires a Factory with Application context.
-        // A common pattern for Previews is to extract the content into a stateless composable (ProfileScreenContent)
-        // and have the stateful composable (ProfileScreen) call it.
-        
-        // However, for this task, I will just instantiate the screen.
-        // Note: This might crash in Android Studio Preview if it tries to access the real Application context or DB.
-        // A better approach for Previews is refactoring to:
-        // ProfileScreen(state: ProfileUiState, onAction: (Action) -> Unit)
-        
-        // For now, to satisfy the request without major refactoring:
         Column(modifier = Modifier.fillMaxSize()) {
              Text("Profile Screen Preview requires mocking ViewModel or Context which is complex in this file structure. Please run the app to see the screen.")
         }
