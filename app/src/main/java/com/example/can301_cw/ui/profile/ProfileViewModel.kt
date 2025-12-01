@@ -15,9 +15,17 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+import com.example.can301_cw.ui.theme.AppTheme
+
+enum class DarkModeConfig {
+    FOLLOW_SYSTEM, LIGHT, DARK
+}
+
 data class ProfileUiState(
     val stats: UserStats = UserStats(),
-    val isDarkModeEnabled: Boolean = false,
+    val isDarkModeEnabled: Boolean = false, // Deprecated in favor of darkModeConfig
+    val darkModeConfig: DarkModeConfig = DarkModeConfig.FOLLOW_SYSTEM,
+    val currentTheme: AppTheme = AppTheme.Blue,
     val notificationsEnabled: Boolean = true,
     val defaultRemindOffset: Int = 30,
     val isCalendarSyncEnabled: Boolean = false,
@@ -36,7 +44,9 @@ class ProfileViewModel(
         settingsRepository.calendarSyncEnabled,
         settingsRepository.aiEndpoint,
         settingsRepository.aiApiKey,
-        memoDao.getAllMemos()
+        memoDao.getAllMemos(),
+        settingsRepository.themeColor,
+        settingsRepository.darkModeConfig
     ) { args: Array<Any> ->
         val darkMode = args[0] as Boolean
         val notifications = args[1] as Boolean
@@ -45,14 +55,30 @@ class ProfileViewModel(
         val endpoint = args[4] as String
         val apiKey = args[5] as String
         val memos = args[6] as List<*>
+        val themeColorName = args[7] as String
+        val darkModeConfigName = args[8] as String
+        
+        val currentTheme = try {
+            AppTheme.valueOf(themeColorName)
+        } catch (e: IllegalArgumentException) {
+            AppTheme.Blue
+        }
+
+        val darkModeConfig = try {
+            DarkModeConfig.valueOf(darkModeConfigName)
+        } catch (e: IllegalArgumentException) {
+            DarkModeConfig.FOLLOW_SYSTEM
+        }
         
         ProfileUiState(
             stats = UserStats(
                 pendingTasks = memos.size.toString(),
                 completedTasks = "0",
-                timeSaved = "0m"
+                savedInformation = "0"
             ),
             isDarkModeEnabled = darkMode,
+            darkModeConfig = darkModeConfig,
+            currentTheme = currentTheme,
             notificationsEnabled = notifications,
             defaultRemindOffset = offset,
             isCalendarSyncEnabled = calendarSync,
@@ -74,6 +100,18 @@ class ProfileViewModel(
     fun setDarkModeEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             settingsRepository.setDarkModeEnabled(enabled)
+        }
+    }
+    
+    fun setTheme(theme: AppTheme) {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepository.setThemeColor(theme.name)
+        }
+    }
+
+    fun setDarkModeConfig(config: DarkModeConfig) {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepository.setDarkModeConfig(config.name)
         }
     }
 

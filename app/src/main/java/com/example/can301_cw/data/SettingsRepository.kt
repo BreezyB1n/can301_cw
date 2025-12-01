@@ -11,7 +11,10 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
         const val KEY_AI_ENDPOINT = "ai_endpoint_url"
         const val KEY_AI_API_KEY = "ai_api_key"
         const val KEY_CALENDAR_SYNC_ENABLED = "calendar_sync_enabled"
-        const val KEY_DARK_MODE_ENABLED = "dark_mode_enabled"
+        const val KEY_DARK_MODE_ENABLED = "dark_mode_enabled" // Deprecated, use KEY_DARK_MODE_CONFIG
+        const val KEY_THEME_COLOR = "theme_color"
+        const val KEY_DARK_MODE_CONFIG = "dark_mode_config"
+        const val KEY_LAST_SYSTEM_DARK_MODE = "last_system_dark_mode"
     }
 
     val notificationsEnabled: Flow<Boolean> = settingsDao.getValueFlow(KEY_NOTIFICATIONS_ENABLED)
@@ -31,6 +34,15 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
 
     val darkModeEnabled: Flow<Boolean> = settingsDao.getValueFlow(KEY_DARK_MODE_ENABLED)
         .map { it?.toBoolean() ?: false }
+
+    val themeColor: Flow<String> = settingsDao.getValueFlow(KEY_THEME_COLOR)
+        .map { it ?: "Blue" }
+
+    val darkModeConfig: Flow<String> = settingsDao.getValueFlow(KEY_DARK_MODE_CONFIG)
+        .map { it ?: "FOLLOW_SYSTEM" }
+
+    val lastSystemDarkMode: Flow<Boolean?> = settingsDao.getValueFlow(KEY_LAST_SYSTEM_DARK_MODE)
+        .map { it?.toBoolean() }
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         settingsDao.insert(SettingsEntity(KEY_NOTIFICATIONS_ENABLED, enabled.toString()))
@@ -54,6 +66,18 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
 
     suspend fun setDarkModeEnabled(enabled: Boolean) {
         settingsDao.insert(SettingsEntity(KEY_DARK_MODE_ENABLED, enabled.toString()))
+    }
+
+    suspend fun setThemeColor(colorName: String) {
+        settingsDao.insert(SettingsEntity(KEY_THEME_COLOR, colorName))
+    }
+
+    suspend fun setDarkModeConfig(config: String) {
+        settingsDao.insert(SettingsEntity(KEY_DARK_MODE_CONFIG, config))
+    }
+
+    suspend fun setLastSystemDarkMode(isDark: Boolean) {
+        settingsDao.insert(SettingsEntity(KEY_LAST_SYSTEM_DARK_MODE, isDark.toString()))
     }
 }
 
