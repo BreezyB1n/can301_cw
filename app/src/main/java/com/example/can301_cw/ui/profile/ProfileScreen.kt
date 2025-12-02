@@ -1,6 +1,10 @@
 package com.example.can301_cw.ui.profile
 
+import android.app.Application
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -12,29 +16,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
-import android.app.Application
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.tooling.preview.Preview
 import com.example.can301_cw.model.UserStats
-import com.example.can301_cw.ui.theme.CAN301_CWTheme
-
-import com.example.can301_cw.ui.theme.AppTheme
-import com.example.can301_cw.ui.theme.BluePrimary
-import com.example.can301_cw.ui.theme.GreenPrimary
-import com.example.can301_cw.ui.theme.YellowPrimary
-import androidx.compose.ui.graphics.Color
-import com.example.can301_cw.ui.theme.GreyPrimary
-
-import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.compositeOver
-
-import androidx.compose.foundation.isSystemInDarkTheme
+import com.example.can301_cw.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,14 +39,16 @@ fun ProfileScreen(
     val scrollState = rememberScrollState()
     val isSystemDark = isSystemInDarkTheme()
 
-    // Dialog state for clearing history
     var showClearDialog by remember { mutableStateOf(false) }
+    
+    // Custom color picker dialog state
+    var showColorPickerDialog by remember { mutableStateOf(false) }
 
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear History") },
-            text = { Text("Are you sure you want to delete all tasks? This action cannot be undone.") },
+            title = { Text("Clear History", style = MaterialTheme.typography.headlineSmall) },
+            text = { Text("Are you sure you want to delete all tasks? This action cannot be undone.", style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -70,6 +64,29 @@ fun ProfileScreen(
                 TextButton(onClick = { showClearDialog = false }) {
                     Text("Cancel")
                 }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    if (showColorPickerDialog) {
+        CustomColorPickerDialog(
+            onColorSelected = { color ->
+                showColorPickerDialog = false
+                // Save and apply custom theme
+                viewModel.setCustomTheme(color.value.toLong())
+            },
+            onDismiss = { showColorPickerDialog = false },
+            initialColor = if (uiState.customThemeColor != 0L) {
+                try {
+                    Color(uiState.customThemeColor.toULong())
+                } catch (e: Exception) {
+                    BluePrimary
+                }
+            } else {
+                BluePrimary
             }
         )
     }
@@ -119,7 +136,10 @@ fun ProfileScreen(
                         val themes = listOf(
                             Triple(AppTheme.Blue, BluePrimary, "Blue"),
                             Triple(AppTheme.Yellow, YellowPrimary, "Yellow"),
-                            Triple(AppTheme.Green, GreenPrimary, "Green")
+                            Triple(AppTheme.Green, GreenPrimary, "Green"),
+                            Triple(AppTheme.SkyBlue, SkyBluePrimary, "Sky Blue"),
+                            Triple(AppTheme.CherryBlossom, CherryBlossomPrimary, "Cherry"),
+                            Triple(AppTheme.StoneropGreen, StoneropGreenPrimary, "Stone")
                         )
                         
                         themes.forEach { (theme, color, label) ->
@@ -130,6 +150,31 @@ fun ProfileScreen(
                                 onClick = { viewModel.setTheme(theme) }
                             )
                         }
+                        
+                        // Show custom theme button only if custom color has been set
+                        if (uiState.customThemeColor != 0L) {
+                            val customColor = try {
+                                Color(uiState.customThemeColor.toULong())
+                            } catch (e: Exception) {
+                                Color.Blue
+                            }
+                            ThemeColorOption(
+                                color = customColor,
+                                label = "Custom",
+                                selected = uiState.currentTheme == AppTheme.Custom,
+                                onClick = { viewModel.setTheme(AppTheme.Custom) }
+                            )
+                        }
+                    }
+                    
+                    // Custom Color Button
+                    FilledTonalButton(
+                        onClick = { showColorPickerDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Text("Customize Color")
                     }
                 }
                 
