@@ -25,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
 import com.example.can301_cw.model.UserStats
 import com.example.can301_cw.ui.theme.*
 
@@ -121,103 +122,14 @@ fun ProfileScreen(
             StatisticsCard(stats = uiState.stats)
 
             // 2. Settings Sections
-            SettingsSection(title = "Appearance") {
-                // Theme Color
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text(
-                        text = "Theme Color",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    ) {
-                        val themes = listOf(
-                            Triple(AppTheme.Blue, BluePrimary, "Blue"),
-                            Triple(AppTheme.Yellow, YellowPrimary, "Yellow"),
-                            Triple(AppTheme.Green, GreenPrimary, "Green"),
-                            Triple(AppTheme.SkyBlue, SkyBluePrimary, "Sky Blue"),
-                            Triple(AppTheme.CherryBlossom, CherryBlossomPrimary, "Cherry"),
-                            Triple(AppTheme.StoneropGreen, StoneropGreenPrimary, "Stone")
-                        )
-                        
-                        themes.forEach { (theme, color, label) ->
-                            ThemeColorOption(
-                                color = color,
-                                label = label,
-                                selected = uiState.currentTheme == theme,
-                                onClick = { viewModel.setTheme(theme) }
-                            )
-                        }
-                        
-                        // Show custom theme button only if custom color has been set
-                        if (uiState.customThemeColor != 0L) {
-                            val customColor = try {
-                                Color(uiState.customThemeColor.toULong())
-                            } catch (e: Exception) {
-                                Color.Blue
-                            }
-                            ThemeColorOption(
-                                color = customColor,
-                                label = "Custom",
-                                selected = uiState.currentTheme == AppTheme.Custom,
-                                onClick = { viewModel.setTheme(AppTheme.Custom) }
-                            )
-                        }
-                    }
-                    
-                    // Custom Color Button
-                    FilledTonalButton(
-                        onClick = { showColorPickerDialog = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Text("Customize Color")
-                    }
-                }
-                
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-                // Dark Mode
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text(
-                        text = "Dark Mode",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
-                    
-                    val darkModeOptions = listOf(
-                        DarkModeConfig.FOLLOW_SYSTEM to "Follow System",
-                        DarkModeConfig.LIGHT to "Light",
-                        DarkModeConfig.DARK to "Dark"
-                    )
-                    
-                    darkModeOptions.forEach { (config, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { viewModel.setDarkModeConfig(config) }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (uiState.darkModeConfig == config) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            AppearanceSection(
+                currentTheme = uiState.currentTheme,
+                customThemeColor = uiState.customThemeColor,
+                darkModeConfig = uiState.darkModeConfig,
+                onThemeSelected = { viewModel.setTheme(it) },
+                onCustomizeColorClick = { showColorPickerDialog = true },
+                onDarkModeConfigSelected = { viewModel.setDarkModeConfig(it) }
+            )
 
             SettingsSection(title = "Notifications") {
                 ListItem(
@@ -505,5 +417,179 @@ fun UserInfoHeaderPreview() {
 fun StatisticsCardPreview() {
     CAN301_CWTheme {
         StatisticsCard(stats = UserStats("5", "12", "30m"))
+    }
+}
+
+@Composable
+fun AppearanceSection(
+    currentTheme: AppTheme,
+    customThemeColor: Long,
+    darkModeConfig: DarkModeConfig,
+    onThemeSelected: (AppTheme) -> Unit,
+    onCustomizeColorClick: () -> Unit,
+    onDarkModeConfigSelected: (DarkModeConfig) -> Unit
+) {
+    SettingsSection(title = "Appearance") {
+        // Theme Color
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                text = "Theme Color",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                val themes = listOf(
+                    Triple(AppTheme.Blue, BluePrimary, "Blue"),
+                    Triple(AppTheme.Yellow, YellowPrimary, "Yellow"),
+                    Triple(AppTheme.Green, GreenPrimary, "Green"),
+                    Triple(AppTheme.SkyBlue, SkyBluePrimary, "Sky Blue"),
+                    Triple(AppTheme.CherryBlossom, CherryBlossomPrimary, "Cherry"),
+                    // Triple(AppTheme.StoneropGreen, StoneropGreenPrimary, "Stone")
+                )
+
+                themes.forEach { (theme, color, label) ->
+                    ThemeColorOption(
+                        color = color,
+                        label = label,
+                        selected = currentTheme == theme,
+                        onClick = { onThemeSelected(theme) }
+                    )
+                }
+
+                // Custom Theme Option
+                val isCustomSet = customThemeColor != 0L
+                val customColor = if (isCustomSet) {
+                    try {
+                        Color(customThemeColor.toULong())
+                    } catch (e: Exception) {
+                        Color.Blue
+                    }
+                } else {
+                    Color.LightGray
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable {
+                        if (isCustomSet) {
+                            onThemeSelected(AppTheme.Custom)
+                        } else {
+                            onCustomizeColorClick()
+                        }
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(customColor)
+                            .border(
+                                width = 2.dp,
+                                color = if (isCustomSet)
+                                    customColor.copy(alpha = 0.6f).compositeOver(Color.Black)
+                                else Color.Gray,
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isCustomSet) {
+                            if (currentTheme == AppTheme.Custom) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = "Selected",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "?",
+                                color = Color.DarkGray,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "Custom",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            // Custom Color Button
+            FilledTonalButton(
+                onClick = onCustomizeColorClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text("Customize Color")
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+        // Dark Mode
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                text = "Dark Mode",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+
+            val darkModeOptions = listOf(
+                DarkModeConfig.FOLLOW_SYSTEM to "Follow System",
+                DarkModeConfig.LIGHT to "Light",
+                DarkModeConfig.DARK to "Dark"
+            )
+
+            darkModeOptions.forEach { (config, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onDarkModeConfigSelected(config) }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (darkModeConfig == config) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AppearanceSectionPreview() {
+    CAN301_CWTheme {
+        AppearanceSection(
+            currentTheme = AppTheme.Blue,
+            customThemeColor = 0L,
+            darkModeConfig = DarkModeConfig.FOLLOW_SYSTEM,
+            onThemeSelected = {},
+            onCustomizeColorClick = {},
+            onDarkModeConfigSelected = {}
+        )
     }
 }
