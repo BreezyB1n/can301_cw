@@ -55,6 +55,17 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    
+    // 补充缺失的依赖
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.0")
+    // 确保包含扩展图标库
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    
+    // Navigation Compose
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

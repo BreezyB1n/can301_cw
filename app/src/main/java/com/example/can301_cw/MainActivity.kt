@@ -58,6 +58,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 
 import androidx.compose.runtime.LaunchedEffect
 import com.example.can301_cw.ui.category.CategoryScreen
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.can301_cw.ui.add.AddMemoScreen
+import com.example.can301_cw.ui.add.AddMemoViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import android.app.Application
+import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -82,11 +90,8 @@ class MainActivity : ComponentActivity() {
             
             LaunchedEffect(isSystemDark, lastSystemDarkMode) {
                 if (lastSystemDarkMode != null && lastSystemDarkMode != isSystemDark) {
-                    // System dark mode changed
-                    // Reset config to FOLLOW_SYSTEM
                     settingsRepository.setDarkModeConfig(DarkModeConfig.FOLLOW_SYSTEM.name)
                 }
-                // Update last known state
                 if (lastSystemDarkMode != isSystemDark) {
                     settingsRepository.setLastSystemDarkMode(isSystemDark)
                 }
@@ -111,15 +116,42 @@ class MainActivity : ComponentActivity() {
             }
             
             CAN301_CWTheme(appTheme = appTheme, darkTheme = darkTheme) {
-                MainScreen(
-                    homeViewModel = homeViewModel,
-                    currentTheme = appTheme,
-                    onThemeChange = { newTheme -> 
-                        lifecycleScope.launch {
-                            settingsRepository.setThemeColor(newTheme.name)
-                        }
+                val navController = rememberNavController()
+                
+                NavHost(navController = navController, startDestination = "main") {
+                    composable("main") {
+                        MainScreen(
+                            homeViewModel = homeViewModel,
+                            currentTheme = appTheme,
+                            onThemeChange = { newTheme -> 
+                                lifecycleScope.launch {
+                                    settingsRepository.setThemeColor(newTheme.name)
+                                }
+                            },
+                            onAddMemoClick = {
+                                navController.navigate("add_memo")
+                            }
+                        )
                     }
-                )
+                    
+                    composable("add_memo") {
+                        val context = LocalContext.current
+                        val application = context.applicationContext as Application
+                        
+                        val addMemoViewModel: AddMemoViewModel = viewModel(
+                            factory = AddMemoViewModel.Factory(
+                                application, 
+                                database.memoDao(),
+                                imageStorageManager
+                            )
+                        )
+
+                        AddMemoScreen(
+                            viewModel = addMemoViewModel,
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+                }
             }
         }
     }
@@ -166,7 +198,8 @@ data class BottomNavItem(
 fun MainScreen(
     homeViewModel: HomeViewModel,
     currentTheme: AppTheme = AppTheme.Blue,
-    onThemeChange: (AppTheme) -> Unit = {}
+    onThemeChange: (AppTheme) -> Unit = {},
+    onAddMemoClick: () -> Unit = {} // Pass navigation callback
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
     val items = listOf(
@@ -196,7 +229,10 @@ fun MainScreen(
     ) { innerPadding ->
         Box(modifier = if (selectedItem == 0 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
             when (selectedItem) {
-                0 -> HomeScreen(viewModel = homeViewModel)
+                0 -> HomeScreen(
+                    viewModel = homeViewModel,
+                    onAddMemoClick = onAddMemoClick // Pass it down
+                )
                 2 -> CategoryScreen()
                 3 -> ProfileScreen()
                 else -> ContentScreen(
