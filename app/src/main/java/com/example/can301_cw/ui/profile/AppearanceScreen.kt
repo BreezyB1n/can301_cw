@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.can301_cw.ui.theme.*
 
@@ -190,5 +191,64 @@ fun AppearanceScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ThemeColorOption(
+    color: Color,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp) // Smaller size
+                .clip(CircleShape)
+                .background(color)
+                .border(
+                    width = 2.dp,
+                    color = color.copy(alpha = 0.6f).compositeOver(Color.Black), // Slightly darker border
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = "Selected",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AppearanceScreenPreview() {
+    CAN301_CWTheme {
+        AppearanceScreen(
+            currentTheme = AppTheme.Blue,
+            customThemeColor = 0L,
+            darkModeConfig = DarkModeConfig.FOLLOW_SYSTEM,
+            onThemeSelected = {},
+            onCustomizeColorClick = {},
+            onDarkModeConfigSelected = {},
+            onBackClick = {}
+        )
     }
 }

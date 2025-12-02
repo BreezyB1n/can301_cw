@@ -8,7 +8,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,5 +48,17 @@ fun IntegrationScreen(
                 }
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun IntegrationScreenPreview() {
+    CAN301_CWTheme {
+        IntegrationScreen(
+            isCalendarSyncEnabled = true,
+            onCalendarSyncEnabledChange = {},
+            onBackClick = {}
+        )
     }
 }

@@ -13,7 +13,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,5 +86,18 @@ fun AIConfigurationScreen(
                 Text("Save Configuration")
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AIConfigurationScreenPreview() {
+    CAN301_CWTheme {
+        AIConfigurationScreen(
+            initialEndpoint = "https://api.example.com",
+            initialApiKey = "sk-1234567890",
+            onSaveConfig = { _, _ -> },
+            onBackClick = {}
+        )
     }
 }
