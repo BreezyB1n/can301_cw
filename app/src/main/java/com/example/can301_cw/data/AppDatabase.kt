@@ -6,12 +6,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.can301_cw.model.MemoItem
+import com.example.can301_cw.model.User
 
-@Database(entities = [MemoItem::class, SettingsEntity::class], version = 2, exportSchema = false)
+@Database(
+    entities = [MemoItem::class, SettingsEntity::class, User::class],
+    version = 3,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun memoDao(): MemoDao
     abstract fun settingsDao(): SettingsDao
+    abstract fun userDao(): UserDao
 
     companion object {
         @Volatile
