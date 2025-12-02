@@ -2,10 +2,16 @@ package com.example.can301_cw.ui.profile
 
 import android.app.Application
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -21,11 +28,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.can301_cw.model.UserStats
@@ -109,154 +114,170 @@ fun ProfileScreen(
     }
 
     // Main Content Switching
-    when (destination) {
-        ProfileDestination.Main -> {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = "Profile",
-                                fontWeight = FontWeight.Bold
-                            )
-                        },
-                    )
-                }
-            ) { paddingValues ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = paddingValues.calculateTopPadding())
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // 0. User Info Header
-                    UserInfoHeader(
-                        username = "John Doe",
-                        userId = "UID: 12345678"
-                    )
-
-                    // 1. Statistics Dashboard
-                    StatisticsCard(stats = uiState.stats)
-
-                    // 2. Settings List
-                    Text(
-                        text = "Settings",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(start = 8.dp, top = 8.dp)
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    AnimatedContent(
+        targetState = destination,
+        transitionSpec = {
+            if (targetState != ProfileDestination.Main && initialState == ProfileDestination.Main) {
+                // Navigate to details: Slide in from right, slide out to left
+                (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                    slideOutHorizontally { width -> -width } + fadeOut())
+            } else {
+                // Back to main: Slide in from left, slide out to right
+                (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                    slideOutHorizontally { width -> width } + fadeOut())
+            }
+        },
+        label = "ProfileNavigation"
+    ) { targetDestination ->
+        when (targetDestination) {
+            ProfileDestination.Main -> {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = "Profile",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
                         )
+                    }
+                ) { paddingValues ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = paddingValues.calculateTopPadding())
+                            .verticalScroll(scrollState)
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column {
-                            SettingsListTile(
-                                title = "Appearance",
-                                icon = Icons.Filled.Create, // Or Palette
-                                onClick = { destination = ProfileDestination.Appearance }
+                        // 0. User Info Header
+                        UserInfoHeader(
+                            username = "John Doe",
+                            userId = "UID: 12345678"
+                        )
+
+                        // 1. Statistics Dashboard
+                        StatisticsCard(stats = uiState.stats)
+
+                        // 2. Settings List
+                        Text(
+                            text = "Settings",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+                        )
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                             )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            SettingsListTile(
-                                title = "Notifications",
-                                icon = Icons.Filled.Notifications,
-                                onClick = { destination = ProfileDestination.Notifications }
+                        ) {
+                            Column {
+                                SettingsListTile(
+                                    title = "Appearance",
+                                    icon = Icons.Outlined.Create,
+                                    onClick = { destination = ProfileDestination.Appearance }
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                SettingsListTile(
+                                    title = "Notifications",
+                                    icon = Icons.Outlined.Notifications,
+                                    onClick = { destination = ProfileDestination.Notifications }
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                SettingsListTile(
+                                    title = "Integrations",
+                                    icon = Icons.Outlined.DateRange,
+                                    onClick = { destination = ProfileDestination.Integrations }
+                                )
+                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                SettingsListTile(
+                                    title = "AI Configuration",
+                                    icon = Icons.Outlined.Settings,
+                                    onClick = { destination = ProfileDestination.AIConfiguration }
+                                )
+                            }
+                        }
+
+                        // 3. Data Management
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
                             )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        ) {
                             SettingsListTile(
-                                title = "Integrations",
-                                icon = Icons.Filled.DateRange, // Calendar icon
-                                onClick = { destination = ProfileDestination.Integrations }
+                                title = "Clear All History",
+                                icon = Icons.Outlined.Delete,
+                                iconTint = MaterialTheme.colorScheme.onError,
+                                textColor = MaterialTheme.colorScheme.onError,
+                                onClick = { showClearDialog = true },
+                                showArrow = false
                             )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            SettingsListTile(
-                                title = "AI Configuration",
-                                icon = Icons.Filled.Settings,
-                                onClick = { destination = ProfileDestination.AIConfiguration }
+                        }
+
+                        // About
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "AI Snap Scheduler v1.0.0",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Data stored locally. Images processed securely.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
                     }
-
-                    // 3. Data Management
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        )
-                    ) {
-                        SettingsListTile(
-                            title = "Clear All History",
-                            icon = Icons.Filled.Delete,
-                            iconTint = MaterialTheme.colorScheme.error,
-                            textColor = MaterialTheme.colorScheme.error,
-                            onClick = { showClearDialog = true },
-                            showArrow = false
-                        )
-                    }
-
-                    // About
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "AI Snap Scheduler v1.0.0",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Data stored locally. Images processed securely.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
                 }
             }
-        }
-        ProfileDestination.Appearance -> {
-            AppearanceScreen(
-                currentTheme = uiState.currentTheme,
-                customThemeColor = uiState.customThemeColor,
-                darkModeConfig = uiState.darkModeConfig,
-                onThemeSelected = { viewModel.setTheme(it) },
-                onCustomizeColorClick = { showColorPickerDialog = true },
-                onDarkModeConfigSelected = { viewModel.setDarkModeConfig(it) },
-                onBackClick = { destination = ProfileDestination.Main }
-            )
-        }
-        ProfileDestination.Notifications -> {
-            NotificationScreen(
-                notificationsEnabled = uiState.notificationsEnabled,
-                defaultRemindOffset = uiState.defaultRemindOffset,
-                onNotificationsEnabledChange = { viewModel.setNotificationsEnabled(it) },
-                onEditReminderClick = { /* TODO */ },
-                onBackClick = { destination = ProfileDestination.Main }
-            )
-        }
-        ProfileDestination.Integrations -> {
-            IntegrationScreen(
-                isCalendarSyncEnabled = uiState.isCalendarSyncEnabled,
-                onCalendarSyncEnabledChange = { viewModel.setCalendarSyncEnabled(it) },
-                onBackClick = { destination = ProfileDestination.Main }
-            )
-        }
-        ProfileDestination.AIConfiguration -> {
-            AIConfigurationScreen(
-                initialEndpoint = uiState.aiEndpoint,
-                initialApiKey = uiState.aiApiKey,
-                onSaveConfig = { endpoint, apiKey -> 
-                    viewModel.updateAiConfig(endpoint, apiKey)
-                    destination = ProfileDestination.Main // Optional: Go back after save
-                },
-                onBackClick = { destination = ProfileDestination.Main }
-            )
+            ProfileDestination.Appearance -> {
+                AppearanceScreen(
+                    currentTheme = uiState.currentTheme,
+                    customThemeColor = uiState.customThemeColor,
+                    darkModeConfig = uiState.darkModeConfig,
+                    onThemeSelected = { viewModel.setTheme(it) },
+                    onCustomizeColorClick = { showColorPickerDialog = true },
+                    onDarkModeConfigSelected = { viewModel.setDarkModeConfig(it) },
+                    onBackClick = { destination = ProfileDestination.Main }
+                )
+            }
+            ProfileDestination.Notifications -> {
+                NotificationScreen(
+                    notificationsEnabled = uiState.notificationsEnabled,
+                    defaultRemindOffset = uiState.defaultRemindOffset,
+                    onNotificationsEnabledChange = { viewModel.setNotificationsEnabled(it) },
+                    onEditReminderClick = { /* TODO */ },
+                    onBackClick = { destination = ProfileDestination.Main }
+                )
+            }
+            ProfileDestination.Integrations -> {
+                IntegrationScreen(
+                    isCalendarSyncEnabled = uiState.isCalendarSyncEnabled,
+                    onCalendarSyncEnabledChange = { viewModel.setCalendarSyncEnabled(it) },
+                    onBackClick = { destination = ProfileDestination.Main }
+                )
+            }
+            ProfileDestination.AIConfiguration -> {
+                AIConfigurationScreen(
+                    initialEndpoint = uiState.aiEndpoint,
+                    initialApiKey = uiState.aiApiKey,
+                    onSaveConfig = { endpoint, apiKey -> 
+                        viewModel.updateAiConfig(endpoint, apiKey)
+                        destination = ProfileDestination.Main // Optional: Go back after save
+                    },
+                    onBackClick = { destination = ProfileDestination.Main }
+                )
+            }
         }
     }
 }
@@ -311,14 +332,14 @@ fun UserInfoHeader(username: String, userId: String) {
             modifier = Modifier
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Person,
                 contentDescription = "Avatar",
                 modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                tint = Color.Black
             )
         }
 
@@ -341,10 +362,11 @@ fun UserInfoHeader(username: String, userId: String) {
 
 @Composable
 fun StatisticsCard(stats: UserStats) {
-    ElevatedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Row(
@@ -367,7 +389,7 @@ fun StatItem(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.secondary
         )
         Text(
             text = label,
@@ -377,45 +399,4 @@ fun StatItem(label: String, value: String) {
     }
 }
 
-@Composable
-fun ThemeColorOption(
-    color: Color,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp) // Smaller size
-                .clip(CircleShape)
-                .background(color)
-                .border(
-                    width = 2.dp,
-                    color = color.copy(alpha = 0.6f).compositeOver(Color.Black), // Slightly darker border
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = "Selected",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
+

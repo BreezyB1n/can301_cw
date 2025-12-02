@@ -31,6 +31,7 @@ private val BlueColorScheme = lightColorScheme(
     background = BlueBackground,
     surface = BlueSurface,
     surfaceContainer = BlueSurface, // For TabBar/Navigation
+    surfaceContainerLow = BlueCardBackground, // For Cards
     surfaceVariant = BlueSecondary.copy(alpha = 0.3f), // For inactive states
     secondaryContainer = BlueContainer
 )
@@ -42,6 +43,7 @@ private val YellowColorScheme = lightColorScheme(
     background = YellowBackground,
     surface = YellowSurface,
     surfaceContainer = YellowSurface,
+    surfaceContainerLow = YellowCardBackground,
     surfaceVariant = YellowSecondary.copy(alpha = 0.3f),
     secondaryContainer = YellowContainer
 )
@@ -53,6 +55,7 @@ private val GreenColorScheme = lightColorScheme(
     background = GreenBackground,
     surface = GreenSurface,
     surfaceContainer = GreenSurface,
+    surfaceContainerLow = GreenCardBackground,
     surfaceVariant = GreenSecondary.copy(alpha = 0.3f),
     secondaryContainer = GreenContainer
 )
@@ -64,6 +67,7 @@ private val SkyBlueColorScheme = lightColorScheme(
     background = SkyBlueBackground,
     surface = SkyBlueSurface,
     surfaceContainer = SkyBlueSurface,
+    surfaceContainerLow = SkyBlueCardBackground,
     surfaceVariant = SkyBlueSecondary.copy(alpha = 0.3f),
     secondaryContainer = SkyBlueContainer
 )
@@ -75,6 +79,7 @@ private val CherryBlossomColorScheme = lightColorScheme(
     background = CherryBlossomBackground,
     surface = CherryBlossomSurface,
     surfaceContainer = CherryBlossomSurface,
+    surfaceContainerLow = CherryBlossomCardBackground,
     surfaceVariant = CherryBlossomSecondary.copy(alpha = 0.3f),
     secondaryContainer = CherryBlossomContainer
 )
@@ -86,6 +91,7 @@ private val StoneropGreenColorScheme = lightColorScheme(
     background = StoneropGreenBackground,
     surface = StoneropGreenSurface,
     surfaceContainer = StoneropGreenSurface,
+    surfaceContainerLow = StoneropGreenCardBackground,
     surfaceVariant = StoneropGreenSecondary.copy(alpha = 0.3f),
     secondaryContainer = StoneropGreenContainer
 )
@@ -138,6 +144,13 @@ private fun generateCustomColorScheme(primaryColor: Color): ColorScheme {
         value = 0.92f
     )
 
+    // Card Background Color (slightly darker than surface)
+    val cardBackgroundColor = Color.hsv(
+        hue = hue,
+        saturation = saturation * 0.15f,
+        value = 0.97f
+    )
+
     return lightColorScheme(
         primary = primaryColor,
         secondary = secondaryColor,
@@ -145,6 +158,7 @@ private fun generateCustomColorScheme(primaryColor: Color): ColorScheme {
         background = backgroundColor,
         surface = surfaceColor,
         surfaceContainer = surfaceColor,
+        surfaceContainerLow = cardBackgroundColor,
         surfaceVariant = secondaryColor.copy(alpha = 0.3f),
         secondaryContainer = containerColor
     )
