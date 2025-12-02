@@ -139,9 +139,9 @@ data class ScheduleTask(
  * Task Status Enum
  */
 enum class TaskStatus(val label: String) {
-    PENDING("待处理"),
-    COMPLETED("已处理"),
-    IGNORED("已忽略");
+    PENDING("pending"),
+    COMPLETED("completed"),
+    IGNORED("ignored");
 
     companion object {
         fun fromLabel(label: String): TaskStatus {
