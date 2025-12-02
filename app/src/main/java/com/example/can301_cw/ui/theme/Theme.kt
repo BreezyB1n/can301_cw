@@ -16,34 +16,55 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = GreyPrimary,
+    secondary = GreySecondary,
+    tertiary = GreyTertiary,
+    secondaryContainer = DarkContainer
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40,
-    background = BackgroundColor,
-    surface = BackgroundColor,
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val BlueColorScheme = lightColorScheme(
+    primary = BluePrimary,
+    secondary = BlueSecondary,
+    tertiary = BlueTertiary,
+    background = BlueBackground,
+    surface = BlueSurface,
+    surfaceContainer = BlueSurface, // For TabBar/Navigation
+    surfaceVariant = BlueSecondary.copy(alpha = 0.3f), // For inactive states
+    secondaryContainer = BlueContainer
 )
+
+private val YellowColorScheme = lightColorScheme(
+    primary = YellowPrimary,
+    secondary = YellowSecondary,
+    tertiary = YellowTertiary,
+    background = YellowBackground,
+    surface = YellowSurface,
+    surfaceContainer = YellowSurface,
+    surfaceVariant = YellowSecondary.copy(alpha = 0.3f),
+    secondaryContainer = YellowContainer
+)
+
+private val GreenColorScheme = lightColorScheme(
+    primary = GreenPrimary,
+    secondary = GreenSecondary,
+    tertiary = GreenTertiary,
+    background = GreenBackground,
+    surface = GreenSurface,
+    surfaceContainer = GreenSurface,
+    surfaceVariant = GreenSecondary.copy(alpha = 0.3f),
+    secondaryContainer = GreenContainer
+)
+
+enum class AppTheme {
+    Blue, Yellow, Green
+}
 
 @Composable
 fun CAN301_CWTheme(
+    appTheme: AppTheme = AppTheme.Blue,
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -51,9 +72,12 @@ fun CAN301_CWTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else -> when(appTheme) {
+            AppTheme.Blue -> BlueColorScheme
+            AppTheme.Yellow -> YellowColorScheme
+            AppTheme.Green -> GreenColorScheme
+        }
     }
 
     val view = LocalView.current
