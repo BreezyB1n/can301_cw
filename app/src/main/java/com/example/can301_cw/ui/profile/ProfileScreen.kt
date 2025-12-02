@@ -25,7 +25,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.Font
 import com.example.can301_cw.model.UserStats
 import com.example.can301_cw.ui.theme.*
 
