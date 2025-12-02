@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,18 +46,40 @@ import com.example.can301_cw.ui.theme.CAN301_CWTheme
 fun CategoryScreen(modifier: Modifier = Modifier) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
+    // Extract HSV from primary color to generate category colors
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(primaryColor.toArgb(), hsv)
+    val hue = hsv[0]
+    val baseSaturation = hsv[1]
+    val baseBrightness = hsv[2]
+
+    // Generate 10 different shades keeping the same hue, clamped to valid range [0, 1]
+    val categoryColors = listOf(
+        Color.hsv(hue, baseSaturation.coerceIn(0f, 1f), baseBrightness.coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.9f).coerceIn(0f, 1f), (baseBrightness * 0.95f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.8f).coerceIn(0f, 1f), (baseBrightness * 0.98f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.7f).coerceIn(0f, 1f), (baseBrightness * 0.92f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 1.0f).coerceIn(0f, 1f), (baseBrightness * 0.88f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.85f).coerceIn(0f, 1f), (baseBrightness * 0.96f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.95f).coerceIn(0f, 1f), (baseBrightness * 0.90f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.75f).coerceIn(0f, 1f), (baseBrightness * 0.94f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.9f).coerceIn(0f, 1f), (baseBrightness * 0.91f).coerceIn(0f, 1f)),
+        Color.hsv(hue, (baseSaturation * 0.8f).coerceIn(0f, 1f), (baseBrightness * 0.93f).coerceIn(0f, 1f))
+    )
+
     // Task type categories with sample data
     val taskCategories = listOf(
-        TaskTypeCategory("Coupons", "COUPON", 12, MaterialTheme.colorScheme.primary),
-        TaskTypeCategory("Kids Toys", "TOY", 8, MaterialTheme.colorScheme.secondary),
-        TaskTypeCategory("Learning", "LEARNING", 15, MaterialTheme.colorScheme.tertiary),
-        TaskTypeCategory("Safety", "SAFETY", 6, MaterialTheme.colorScheme.inversePrimary),
-        TaskTypeCategory("Archery", "ARCHERY", 9, MaterialTheme.colorScheme.primary),
-        TaskTypeCategory("Gesture Control", "GESTURE", 11, MaterialTheme.colorScheme.secondary),
-        TaskTypeCategory("User Interface", "UI", 7, MaterialTheme.colorScheme.tertiary),
-        TaskTypeCategory("Research", "RESEARCH", 13, MaterialTheme.colorScheme.inversePrimary),
-        TaskTypeCategory("Headphone", "HEADPHONE", 5, MaterialTheme.colorScheme.primary),
-        TaskTypeCategory("Touch", "TOUCH", 10, MaterialTheme.colorScheme.secondary)
+        TaskTypeCategory("Coupons", "COUPON", 12, categoryColors[0]),
+        TaskTypeCategory("Kids Toys", "TOY", 8, categoryColors[1]),
+        TaskTypeCategory("Learning", "LEARNING", 15, categoryColors[2]),
+        TaskTypeCategory("Safety", "SAFETY", 6, categoryColors[3]),
+        TaskTypeCategory("Archery", "ARCHERY", 9, categoryColors[4]),
+        TaskTypeCategory("Gesture Control", "GESTURE", 11, categoryColors[5]),
+        TaskTypeCategory("User Interface", "UI", 7, categoryColors[6]),
+        TaskTypeCategory("Research", "RESEARCH", 13, categoryColors[7]),
+        TaskTypeCategory("Headphone", "HEADPHONE", 5, categoryColors[8]),
+        TaskTypeCategory("Touch", "TOUCH", 10, categoryColors[9])
     )
 
     Scaffold(
