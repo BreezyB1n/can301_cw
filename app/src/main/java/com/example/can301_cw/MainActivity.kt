@@ -176,7 +176,7 @@ fun MainScreen(
         BottomNavItem("Account", Icons.Filled.AccountCircle)
     )
 
-    val navigationBarHeight = 60.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navigationBarHeight = 52.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Scaffold(
         Modifier.fillMaxSize(), bottomBar = {
@@ -194,7 +194,7 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        Box(modifier = if (selectedItem == 0 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
+        Box(modifier = if (selectedItem == 0 || selectedItem == 2 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
             when (selectedItem) {
                 0 -> HomeScreen(viewModel = homeViewModel)
                 2 -> CategoryScreen()

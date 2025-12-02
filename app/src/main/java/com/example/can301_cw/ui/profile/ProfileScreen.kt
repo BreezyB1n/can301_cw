@@ -77,7 +77,12 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profile") }
+                title = {
+                    Text(
+                        text = "Profile",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
             )
         }
     ) { paddingValues ->
