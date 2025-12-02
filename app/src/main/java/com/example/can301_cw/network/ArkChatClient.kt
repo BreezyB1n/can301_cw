@@ -135,30 +135,37 @@ object ArkChatClient {
             add("thinking", JsonObject().apply { addProperty("type", "disabled") })
         }
 
+        val jsonString = gson.toJson(requestJson)
+        println("ArkChatClient Request JSON: $jsonString")
+
         return runCatching {
-            val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 10_000
-                readTimeout = 20_000
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Authorization", "Bearer $apiKey")
-            }
-
-            connection.outputStream.use { output ->
-                output.write(gson.toJson(requestJson).toByteArray(Charsets.UTF_8))
-                output.flush()
-            }
-
-            val responseCode = connection.responseCode
-            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream ?: connection.inputStream
-            val body = stream.bufferedReader().use(BufferedReader::readText)
-            connection.disconnect()
-
-            if (responseCode !in 200..299) {
-                error("HTTP $responseCode $body")
-            }
-            body
+            executeRequestWithRetry(baseUrl, apiKey, jsonString)
         }
+    }
+
+    private fun executeRequestWithRetry(baseUrl: String, apiKey: String, jsonBody: String): String {
+        val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 10_000
+            readTimeout = 200_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer $apiKey")
+        }
+
+        connection.outputStream.use { output ->
+            output.write(jsonBody.toByteArray(Charsets.UTF_8))
+            output.flush()
+        }
+
+        val responseCode = connection.responseCode
+        val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream ?: connection.inputStream
+        val body = stream.bufferedReader().use(BufferedReader::readText)
+        connection.disconnect()
+
+        if (responseCode !in 200..299) {
+            error("HTTP $responseCode $body")
+        }
+        return body
     }
 }

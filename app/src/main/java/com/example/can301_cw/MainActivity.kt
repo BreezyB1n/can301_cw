@@ -1,63 +1,42 @@
 package com.example.can301_cw
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.can301_cw.ui.home.HomeScreen
-import com.example.can301_cw.ui.theme.AppTheme
-import com.example.can301_cw.ui.theme.CAN301_CWTheme
-import androidx.compose.runtime.collectAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import com.example.can301_cw.data.SettingsRepository
-import com.example.can301_cw.ui.profile.DarkModeConfig
-
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.viewModels
+import java.util.Date
 import com.example.can301_cw.data.AppDatabase
 import com.example.can301_cw.data.FakeMemoDao
 import com.example.can301_cw.data.ImageStorageManager
+import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
-import com.example.can301_cw.ui.home.HomeViewModel
-import com.example.can301_cw.ui.profile.ProfileScreen
-import java.util.Date
-
-import androidx.compose.runtime.saveable.rememberSaveable
-
-import androidx.compose.runtime.LaunchedEffect
 import com.example.can301_cw.ui.category.CategoryScreen
+import com.example.can301_cw.ui.home.HomeScreen
+import com.example.can301_cw.ui.home.HomeViewModel
+import com.example.can301_cw.ui.profile.DarkModeConfig
+import com.example.can301_cw.ui.profile.ProfileScreen
+import com.example.can301_cw.ui.theme.AppTheme
+import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -69,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         handleIntent(intent)
 
         enableEdgeToEdge()
@@ -77,9 +56,10 @@ class MainActivity : ComponentActivity() {
             val themeColorName by settingsRepository.themeColor.collectAsState(initial = "Blue")
             val darkModeConfigName by settingsRepository.darkModeConfig.collectAsState(initial = "FOLLOW_SYSTEM")
             val lastSystemDarkMode by settingsRepository.lastSystemDarkMode.collectAsState(initial = null)
-            
+            val customThemeColorValue by settingsRepository.customThemeColor.collectAsState(initial = 0L)
+
             val isSystemDark = isSystemInDarkTheme()
-            
+
             LaunchedEffect(isSystemDark, lastSystemDarkMode) {
                 if (lastSystemDarkMode != null && lastSystemDarkMode != isSystemDark) {
                     // System dark mode changed
@@ -97,7 +77,7 @@ class MainActivity : ComponentActivity() {
             } catch (e: IllegalArgumentException) {
                 AppTheme.Blue
             }
-            
+
             val darkModeConfig = try {
                 DarkModeConfig.valueOf(darkModeConfigName)
             } catch (e: IllegalArgumentException) {
@@ -109,12 +89,23 @@ class MainActivity : ComponentActivity() {
                 DarkModeConfig.LIGHT -> false
                 DarkModeConfig.DARK -> true
             }
-            
-            CAN301_CWTheme(appTheme = appTheme, darkTheme = darkTheme) {
+
+            // Convert Long to Color for custom theme
+            val customColor = if (customThemeColorValue != 0L) {
+                try {
+                    androidx.compose.ui.graphics.Color(customThemeColorValue.toULong())
+                } catch (e: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
+
+            CAN301_CWTheme(appTheme = appTheme, customPrimaryColor = customColor, darkTheme = darkTheme) {
                 MainScreen(
                     homeViewModel = homeViewModel,
                     currentTheme = appTheme,
-                    onThemeChange = { newTheme -> 
+                    onThemeChange = { newTheme ->
                         lifecycleScope.launch {
                             settingsRepository.setThemeColor(newTheme.name)
                         }
@@ -176,7 +167,7 @@ fun MainScreen(
         BottomNavItem("Account", Icons.Filled.AccountCircle)
     )
 
-    val navigationBarHeight = 60.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navigationBarHeight = 52.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Scaffold(
         Modifier.fillMaxSize(), bottomBar = {
@@ -194,7 +185,7 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        Box(modifier = if (selectedItem == 0 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
+        Box(modifier = if (selectedItem == 0 || selectedItem == 2 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
             when (selectedItem) {
                 0 -> HomeScreen(viewModel = homeViewModel)
                 2 -> CategoryScreen()

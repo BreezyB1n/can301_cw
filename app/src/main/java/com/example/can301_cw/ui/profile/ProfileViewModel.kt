@@ -26,6 +26,7 @@ data class ProfileUiState(
     val isDarkModeEnabled: Boolean = false, // Deprecated in favor of darkModeConfig
     val darkModeConfig: DarkModeConfig = DarkModeConfig.FOLLOW_SYSTEM,
     val currentTheme: AppTheme = AppTheme.Blue,
+    val customThemeColor: Long = 0L, // Store as ARGB Long
     val notificationsEnabled: Boolean = true,
     val defaultRemindOffset: Int = 30,
     val isCalendarSyncEnabled: Boolean = false,
@@ -46,7 +47,8 @@ class ProfileViewModel(
         settingsRepository.aiApiKey,
         memoDao.getAllMemos(),
         settingsRepository.themeColor,
-        settingsRepository.darkModeConfig
+        settingsRepository.darkModeConfig,
+        settingsRepository.customThemeColor
     ) { args: Array<Any> ->
         val darkMode = args[0] as Boolean
         val notifications = args[1] as Boolean
@@ -57,6 +59,7 @@ class ProfileViewModel(
         val memos = args[6] as List<*>
         val themeColorName = args[7] as String
         val darkModeConfigName = args[8] as String
+        val customThemeColorValue = args[9] as Long
         
         val currentTheme = try {
             AppTheme.valueOf(themeColorName)
@@ -79,6 +82,7 @@ class ProfileViewModel(
             isDarkModeEnabled = darkMode,
             darkModeConfig = darkModeConfig,
             currentTheme = currentTheme,
+            customThemeColor = customThemeColorValue,
             notificationsEnabled = notifications,
             defaultRemindOffset = offset,
             isCalendarSyncEnabled = calendarSync,
@@ -106,6 +110,15 @@ class ProfileViewModel(
     fun setTheme(theme: AppTheme) {
         viewModelScope.launch(Dispatchers.IO) {
             settingsRepository.setThemeColor(theme.name)
+        }
+    }
+
+    fun setCustomTheme(colorValue: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // First save the custom color
+            settingsRepository.setCustomThemeColor(colorValue)
+            // Then switch to custom theme
+            settingsRepository.setThemeColor(AppTheme.Custom.name)
         }
     }
 

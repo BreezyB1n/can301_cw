@@ -15,6 +15,7 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
         const val KEY_THEME_COLOR = "theme_color"
         const val KEY_DARK_MODE_CONFIG = "dark_mode_config"
         const val KEY_LAST_SYSTEM_DARK_MODE = "last_system_dark_mode"
+        const val KEY_CUSTOM_THEME_COLOR = "custom_theme_color"
     }
 
     val notificationsEnabled: Flow<Boolean> = settingsDao.getValueFlow(KEY_NOTIFICATIONS_ENABLED)
@@ -43,6 +44,9 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
 
     val lastSystemDarkMode: Flow<Boolean?> = settingsDao.getValueFlow(KEY_LAST_SYSTEM_DARK_MODE)
         .map { it?.toBoolean() }
+
+    val customThemeColor: Flow<Long> = settingsDao.getValueFlow(KEY_CUSTOM_THEME_COLOR)
+        .map { it?.toLongOrNull() ?: 0L }
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         settingsDao.insert(SettingsEntity(KEY_NOTIFICATIONS_ENABLED, enabled.toString()))
@@ -78,6 +82,10 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
 
     suspend fun setLastSystemDarkMode(isDark: Boolean) {
         settingsDao.insert(SettingsEntity(KEY_LAST_SYSTEM_DARK_MODE, isDark.toString()))
+    }
+
+    suspend fun setCustomThemeColor(colorValue: Long) {
+        settingsDao.insert(SettingsEntity(KEY_CUSTOM_THEME_COLOR, colorValue.toString()))
     }
 }
 
