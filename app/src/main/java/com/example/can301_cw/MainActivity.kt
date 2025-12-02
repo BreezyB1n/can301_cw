@@ -57,6 +57,7 @@ import java.util.Date
 import androidx.compose.runtime.saveable.rememberSaveable
 
 import androidx.compose.runtime.LaunchedEffect
+import com.example.can301_cw.ui.category.CategoryScreen
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -196,6 +197,7 @@ fun MainScreen(
         Box(modifier = if (selectedItem == 0 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
             when (selectedItem) {
                 0 -> HomeScreen(viewModel = homeViewModel)
+                2 -> CategoryScreen()
                 3 -> ProfileScreen()
                 else -> ContentScreen(
                     text = "This is ${items[selectedItem].name} Screen"
