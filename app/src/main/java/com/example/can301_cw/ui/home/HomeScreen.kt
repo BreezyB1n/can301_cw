@@ -67,11 +67,13 @@ import java.util.Locale
 fun HomeScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
+    onAddMemoClick: () -> Unit
 ) {
     val memoItems by viewModel.memoItems.collectAsState()
     HomeScreenContent(
         memoItems = memoItems,
-        modifier = modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize(),
+        onAddMemoClick = onAddMemoClick
     )
 }
 
@@ -79,7 +81,8 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(
     memoItems: List<MemoItem>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAddMemoClick: () -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
@@ -141,7 +144,7 @@ fun HomeScreenContent(
                             color = Color.White,
                             modifier = Modifier.size(40.dp)
                         ) {
-                            IconButton(onClick = { /* TODO */ }) {
+                            IconButton(onClick = onAddMemoClick) {
                                 Icon(
                                     imageVector = Icons.Filled.Add,
                                     contentDescription = "Add",
