@@ -147,7 +147,7 @@ object ArkChatClient {
         val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 10_000
-            readTimeout = 200_000
+            readTimeout = 20_000
             doOutput = true
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Authorization", "Bearer $apiKey")

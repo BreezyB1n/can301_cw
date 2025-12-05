@@ -400,20 +400,6 @@ fun MemoImage(imageData: ByteArray?, modifier: Modifier = Modifier) {
                 )
             }
         }
-
-        // Cloud Icon at top right of image
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Check, // Using Check as a placeholder for the sync icon
-                contentDescription = null,
-                tint = Color(0xFF4CAF50),
-                modifier = Modifier.size(16.dp)
-            )
-        }
     }
 }
 
@@ -467,12 +453,23 @@ fun MemoBottomInfo(item: MemoItem) {
         
         Spacer(modifier = Modifier.width(8.dp))
 
-        Text(
-            text = timeString,
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
+        Row(
+            modifier = Modifier.padding(bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                tint = Color(0xFF4CAF50),
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = timeString,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+            )
+        }
     }
 }
 

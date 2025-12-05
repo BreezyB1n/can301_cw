@@ -48,6 +48,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
@@ -125,7 +129,31 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    composable("add_memo") {
+                    composable(
+                        route = "add_memo",
+                        enterTransition = {
+                            slideInVertically(
+                                initialOffsetY = { it }, // Slide in from bottom
+                                animationSpec = tween(300)
+                            )
+                        },
+                        exitTransition = {
+                            slideOutVertically(
+                                targetOffsetY = { it }, // Slide out to bottom
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popEnterTransition = {
+                            // When coming back to this screen (not applicable here as we pop it)
+                            null
+                        },
+                        popExitTransition = {
+                             slideOutVertically(
+                                targetOffsetY = { it }, // Slide out to bottom
+                                animationSpec = tween(300)
+                            )
+                        }
+                    ) {
                         val context = LocalContext.current
                         val application = context.applicationContext as Application
 
