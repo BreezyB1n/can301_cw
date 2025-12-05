@@ -20,13 +20,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Image
@@ -35,6 +38,8 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,8 +49,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -135,6 +138,7 @@ fun AddMemoScreen(
             // 1. Input Section
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.outlinedCardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
@@ -209,29 +213,45 @@ fun AddMemoScreen(
 
             // 2. Media Section
             if (uiState.selectedImageUri == null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FilledTonalButton(
-                        onClick = { launchCamera() },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Filled.PhotoCamera, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Camera")
+                        FilledTonalButton(
+                            onClick = { launchCamera() },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Icon(Icons.Filled.PhotoCamera, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Camera", style = MaterialTheme.typography.titleMedium)
+                        }
+                        
+                        FilledTonalButton(
+                            onClick = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Icon(Icons.Filled.Image, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Gallery", style = MaterialTheme.typography.titleMedium)
+                        }
                     }
                     
-                    OutlinedButton(
-                        onClick = { pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Filled.Image, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Gallery")
-                    }
+                    Text(
+                        text = "* Currently only supports one photo.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, top = 8.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Start
+                    )
                 }
             } else {
                 // Image Preview
@@ -254,129 +274,188 @@ fun AddMemoScreen(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f), CircleShape)
+                            .size(24.dp)
                     ) {
-                        Icon(Icons.Filled.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Remove",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
 
             // 3. AI Analysis Section
             if (uiState.useAIParsing) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(
+                        onClick = { viewModel.parseContent() },
+                        enabled = uiState.content.isNotBlank() || uiState.selectedImageUri != null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        if (uiState.isParsing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Analyzing...", style = MaterialTheme.typography.titleMedium)
+                        } else {
+                            Text(
+                                if (uiState.apiResponse != null) "Retry Analysis" else "Analyze",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("AI Analysis", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                            if (uiState.isParsing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                TextButton(
-                                    onClick = { viewModel.parseContent() },
-                                    enabled = uiState.content.isNotBlank() || uiState.selectedImageUri != null
-                                ) {
-                                    Text(if (uiState.apiResponse != null) "Retry" else "Analyze")
+                            Text("AI Analysis", style = MaterialTheme.typography.titleSmall)
+                        }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 80.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                if (uiState.apiResponse == null && !uiState.isParsing) {
+                                    Text(
+                                        "Enter text or upload an image to analyze content.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else if (uiState.apiResponse != null) {
+                                    AnalysisResultSection(uiState.apiResponse!!, context)
                                 }
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        if (uiState.apiResponse == null && !uiState.isParsing) {
-                            Text(
-                                "Enter text or upload an image to analyze content.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else if (uiState.apiResponse != null) {
-                            AnalysisResultSection(uiState.apiResponse!!, context)
                         }
                     }
                 }
             }
 
             // 4. Tags Section
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Tags", style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = { viewModel.showTagInputDialog(true) }) {
-                        Text("Add Custom")
-                    }
+                    Text("Tags", style = MaterialTheme.typography.titleSmall)
                 }
 
-                // AI Suggested Tags
-                if (uiState.apiResponse?.allTags?.isNotEmpty() == true) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.Star,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            "Suggested",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 100.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        uiState.apiResponse?.allTags?.forEach { tag ->
-                            FilterChip(
-                                selected = true,
-                                onClick = { /* No-op */ },
-                                label = { Text(tag) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        // AI Suggested Tags
+                        if (uiState.apiResponse?.allTags?.isNotEmpty() == true) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
                                 )
-                            )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Suggested",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                uiState.apiResponse?.allTags?.forEach { tag ->
+                                    AssistChip(
+                                        onClick = { /* No-op */ },
+                                        label = { Text(tag, style = MaterialTheme.typography.labelSmall) },
+                                        colors = AssistChipDefaults.assistChipColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ),
+                                        border = null,
+                                        modifier = Modifier.height(24.dp)
+                                    )
+                                }
+                            }
                         }
-                    }
-                }
 
-                // Local Tags
-                Text(
-                    "Available",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    uiState.localTags.forEach { tag ->
-                        val isSelected = uiState.selectedTags.contains(tag)
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { if (isSelected) viewModel.removeTag(tag) else viewModel.addTag(tag) },
-                            label = { Text(tag) }
-                        )
+                        // Local Tags
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Available",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            IconButton(
+                                onClick = { viewModel.showTagInputDialog(true) },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = "Add Custom Tag",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            uiState.localTags.forEach { tag ->
+                                val isSelected = uiState.selectedTags.contains(tag)
+                                AssistChip(
+                                    onClick = { if (isSelected) viewModel.removeTag(tag) else viewModel.addTag(tag) },
+                                    label = { Text(tag, style = MaterialTheme.typography.labelSmall) },
+                                    colors = if (isSelected) {
+                                        AssistChipDefaults.assistChipColors(
+                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    } else {
+                                        AssistChipDefaults.assistChipColors()
+                                    },
+                                    border = if (isSelected) null else AssistChipDefaults.assistChipBorder(enabled = true),
+                                    modifier = Modifier.height(24.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
             
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            FilledTonalButton(
                 onClick = { 
                     viewModel.saveMemo(onSuccess = onNavigateBack)
                 },
@@ -384,18 +463,18 @@ fun AddMemoScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 enabled = !uiState.isSaving,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(24.dp)
             ) {
                 if (uiState.isSaving) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                         strokeWidth = 2.dp
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Saving...")
+                    Text("Saving...", style = MaterialTheme.typography.titleMedium)
                 } else {
-                    Text("Create Memo")
+                    Text("Create Memo", style = MaterialTheme.typography.titleMedium)
                 }
             }
 
@@ -523,11 +602,12 @@ fun TagInputDialog(
                 label = { Text("Tag Name") }, 
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
             ) 
         },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         confirmButton = { TextButton(onClick = { onConfirm(text) }) { Text("Add") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
