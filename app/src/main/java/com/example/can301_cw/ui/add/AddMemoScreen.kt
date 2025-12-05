@@ -124,31 +124,6 @@ fun AddMemoScreen(
                     }
                 }
             )
-        },
-        bottomBar = {
-            Button(
-                onClick = { 
-                    viewModel.saveMemo(onSuccess = onNavigateBack)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(56.dp),
-                enabled = !uiState.isSaving,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                if (uiState.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("保存中...")
-                } else {
-                    Text("创建 Memo", style = MaterialTheme.typography.titleMedium)
-                }
-            }
         }
     ) { innerPadding ->
         Column(
@@ -256,7 +231,6 @@ fun AddMemoScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("* 暂时只能拍摄/选择一张照片", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                    Text("推荐使用快捷指令! >", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
             } else {
                 // Image Preview
@@ -392,7 +366,31 @@ fun AddMemoScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(80.dp))
+            
+            Button(
+                onClick = { 
+                    viewModel.saveMemo(onSuccess = onNavigateBack)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                enabled = !uiState.isSaving,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (uiState.isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("保存中...")
+                } else {
+                    Text("创建 Memo", style = MaterialTheme.typography.titleMedium)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 

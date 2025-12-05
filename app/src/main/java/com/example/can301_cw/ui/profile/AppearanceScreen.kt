@@ -212,7 +212,7 @@ fun ThemeColorOption(
                 .background(color)
                 .border(
                     width = 2.dp,
-                    color = color.copy(alpha = 0.6f).compositeOver(Color.Black), // Slightly darker border
+                    color = color.copy(alpha = 0.6f).compositeOver(Color.Black),
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
