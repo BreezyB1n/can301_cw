@@ -67,13 +67,15 @@ import java.util.Locale
 fun HomeScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
-    onAddMemoClick: () -> Unit
+    onAddMemoClick: () -> Unit,
+    onMemoClick: () -> Unit
 ) {
     val memoItems by viewModel.memoItems.collectAsState()
     HomeScreenContent(
         memoItems = memoItems,
         modifier = modifier.fillMaxSize(),
-        onAddMemoClick = onAddMemoClick
+        onAddMemoClick = onAddMemoClick,
+        onMemoClick = onMemoClick
     )
 }
 
@@ -82,7 +84,8 @@ fun HomeScreen(
 fun HomeScreenContent(
     memoItems: List<MemoItem>,
     modifier: Modifier = Modifier,
-    onAddMemoClick: () -> Unit = {}
+    onAddMemoClick: () -> Unit = {},
+    onMemoClick: () -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
@@ -187,7 +190,7 @@ fun HomeScreenContent(
                     DateHeader(date)
                 }
                 items(items) { memo ->
-                    MemoCard(memo)
+                    MemoCard(memo, onClick = onMemoClick)
                 }
             }
         }
@@ -278,7 +281,7 @@ fun DateHeader(date: String) {
 }
 
 @Composable
-fun MemoCard(item: MemoItem) {
+fun MemoCard(item: MemoItem, onClick: () -> Unit = {}) {
     val hasImage = item.imageData != null && item.imageData!!.isNotEmpty()
     val imageAspectRatio = remember(item.imageData) {
         if (hasImage) {
@@ -302,6 +305,7 @@ fun MemoCard(item: MemoItem) {
     val isPortrait = imageAspectRatio < 1f
 
     Card(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),

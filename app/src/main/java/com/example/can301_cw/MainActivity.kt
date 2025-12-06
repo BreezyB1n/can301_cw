@@ -44,6 +44,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.can301_cw.ui.add.AddMemoScreen
 import com.example.can301_cw.ui.add.AddMemoViewModel
+import com.example.can301_cw.ui.detail.MemoDetailScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +52,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -125,7 +128,40 @@ class MainActivity : ComponentActivity() {
                                     settingsRepository.setThemeColor(newTheme.name)
                                 }
                             },
-                            onAddMemoClick = { navController.navigate("add_memo") }
+                            onAddMemoClick = { navController.navigate("add_memo") },
+                            onMemoClick = { navController.navigate("memo_detail") }
+                        )
+                    }
+
+                    composable(
+                        route = "memo_detail",
+                        enterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        }
+                    ) {
+                        MemoDetailScreen(
+                            onBackClick = { navController.popBackStack() }
                         )
                     }
 
@@ -218,7 +254,8 @@ fun MainScreen(
     homeViewModel: HomeViewModel,
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
-    onAddMemoClick: () -> Unit = {} // Pass navigation callback
+    onAddMemoClick: () -> Unit = {}, // Pass navigation callback
+    onMemoClick: () -> Unit = {}
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
     val items = listOf(
@@ -250,7 +287,8 @@ fun MainScreen(
             when (selectedItem) {
                 0 -> HomeScreen(
                     viewModel = homeViewModel,
-                    onAddMemoClick = onAddMemoClick // Pass it down
+                    onAddMemoClick = onAddMemoClick, // Pass it down
+                    onMemoClick = onMemoClick
                 )
                 2 -> CategoryScreen()
                 3 -> ProfileScreen()
