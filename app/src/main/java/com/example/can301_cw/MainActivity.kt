@@ -174,7 +174,12 @@ class MainActivity : ComponentActivity() {
                                     settingsRepository.setThemeColor(newTheme.name)
                                 }
                             },
-                            onAddMemoClick = { navController.navigate("add_memo") }
+                            onAddMemoClick = { navController.navigate("add_memo") },
+                            onLogout = {
+                                navController.navigate("login") {
+                                    popUpTo("main") { inclusive = true }
+                                }
+                            }
                         )
                     }
 
@@ -268,7 +273,8 @@ fun MainScreen(
     userRepository: UserRepository,
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
-    onAddMemoClick: () -> Unit = {} // Pass navigation callback
+    onAddMemoClick: () -> Unit = {}, // Pass navigation callback
+    onLogout: () -> Unit = {}
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
     val items = listOf(
@@ -313,7 +319,10 @@ fun MainScreen(
                             userRepository = userRepository
                         )
                     )
-                    ProfileScreen(viewModel = profileViewModel)
+                    ProfileScreen(
+                        viewModel = profileViewModel,
+                        onLogout = onLogout
+                    )
                 }
                 else -> ContentScreen(
                     text = "This is ${items[selectedItem].name} Screen"
