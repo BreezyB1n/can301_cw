@@ -92,7 +92,7 @@ fun HomeScreenContent(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     val memoGroups = memoItems.groupBy {
-        SimpleDateFormat("MM月dd日", Locale.getDefault()).format(it.createdAt)
+        SimpleDateFormat("MMMM dd", Locale.ENGLISH).format(it.createdAt)
     }
 
     Scaffold(
