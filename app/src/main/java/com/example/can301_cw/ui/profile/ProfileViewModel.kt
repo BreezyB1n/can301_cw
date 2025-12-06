@@ -154,8 +154,45 @@ class ProfileViewModel(
         }
     }
 
+    fun updateAvatar(imagePath: String) {
+        val currentUser = uiState.value.user ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.updateUser(currentUser.copy(avatarPath = imagePath))
+        }
+    }
+
+    fun updateUsername(newUsername: String) {
+        val currentUser = uiState.value.user ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.updateUser(currentUser.copy(username = newUsername))
+        }
+    }
+
+    fun updatePassword(oldPassword: String, newPassword: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val currentUser = uiState.value.user ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            if (userRepository.verifyPassword(oldPassword, currentUser.password)) {
+                // Manually hash the new password as updateUser expects a full User object.
+                // But wait, UserRepository.updateUser just saves the user.
+                // We need to re-hash the password. UserRepository.register hashes it, but updateUser doesn't seem to expose hashing logic directly unless we move hashPassword to public or duplicate it.
+                // Let's modify UserRepository to support password update or expose hashing.
+                // Or better, add updatePassword in UserRepository.
+                val success = userRepository.updatePassword(currentUser, newPassword)
+                if (success) {
+                    launch(Dispatchers.Main) { onSuccess() }
+                } else {
+                     launch(Dispatchers.Main) { onError("Failed to update password") }
+                }
+            } else {
+                launch(Dispatchers.Main) { onError("Incorrect old password") }
+            }
+        }
+    }
+
     fun logout() {
-        userRepository.logout()
+        viewModelScope.launch(Dispatchers.IO) {
+            userRepository.logout()
+        }
     }
 
     class Factory(

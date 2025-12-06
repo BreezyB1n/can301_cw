@@ -11,10 +11,30 @@ import java.util.Date
 /**
  * Repository for User operations, including registration and authentication logic.
  */
-class UserRepository(private val userDao: UserDao) {
+class UserRepository(
+    private val userDao: UserDao,
+    private val settingsDao: SettingsDao
+) {
+
+    companion object {
+        private const val KEY_LOGGED_IN_USER_ID = "logged_in_user_id"
+    }
 
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+
+    /**
+     * Restore user session from persistent storage
+     */
+    suspend fun restoreSession() {
+        val userId = settingsDao.getValue(KEY_LOGGED_IN_USER_ID)
+        if (!userId.isNullOrBlank()) {
+            val user = userDao.getUserById(userId)
+            if (user != null) {
+                _currentUser.value = user
+            }
+        }
+    }
 
     /**
      * Registration result sealed class
@@ -71,6 +91,8 @@ class UserRepository(private val userDao: UserDao) {
 
         return try {
             userDao.insertUser(user)
+            // Save session
+            settingsDao.insert(SettingsEntity(KEY_LOGGED_IN_USER_ID, user.id))
             _currentUser.value = user
             RegisterResult.Success(user)
         } catch (e: Exception) {
@@ -112,11 +134,14 @@ class UserRepository(private val userDao: UserDao) {
             return LoginResult.Error("Incorrect password")
         }
 
+        // Save session
+        settingsDao.insert(SettingsEntity(KEY_LOGGED_IN_USER_ID, user.id))
         _currentUser.value = user
         return LoginResult.Success(user)
     }
 
-    fun logout() {
+    suspend fun logout() {
+        settingsDao.insert(SettingsEntity(KEY_LOGGED_IN_USER_ID, ""))
         _currentUser.value = null
     }
 
@@ -199,6 +224,19 @@ class UserRepository(private val userDao: UserDao) {
     suspend fun updateUser(user: User) {
         val updatedUser = user.copy(updatedAt = Date())
         userDao.updateUser(updatedUser)
+    }
+
+    suspend fun updatePassword(user: User, newPassword: String): Boolean {
+        return try {
+            val hashedPassword = hashPassword(newPassword)
+            val updatedUser = user.copy(password = hashedPassword, updatedAt = Date())
+            userDao.updateUser(updatedUser)
+            // Update local cache
+            _currentUser.value = updatedUser
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun deleteUser(user: User) {
