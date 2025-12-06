@@ -148,7 +148,7 @@ object ArkChatClient {
         val textPrompt = JsonObject().apply {
             add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
             addProperty("isimage", if (isImage) 1 else 0)
-            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English")
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English. IMPORTANT: All 'tags' arrays must contain no more than 4 items.")
             add("schema", schemaObj)
         }.toString()
 
