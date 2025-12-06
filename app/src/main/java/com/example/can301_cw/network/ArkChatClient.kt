@@ -1,5 +1,7 @@
 package com.example.can301_cw.network
 
+import android.content.Context
+import com.example.can301_cw.R
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -19,6 +21,31 @@ object ArkChatClient {
     /**
      * 结构化对话：发送 {tags, content, isimage}，要求服务端返回指定 schema。
      * content: 文本或 base64(当 isImage=true 时)。
+     * @return 原始 JSON 响应字符串
+     */
+    fun chatWithImageUrl(
+        context: Context,
+        tags: List<String>,
+        content: String,
+        isImage: Boolean,
+        modelId: String = "doubao-seed-1-6-vision-250815",
+        apiKeyResId: Int = R.string.ARK_API_KEY,
+        baseUrl: String = DEFAULT_BASE_URL
+    ): Result<String> {
+        val apiKey = context.getString(apiKeyResId)
+        return chatWithImageUrl(
+            tags = tags,
+            content = content,
+            isImage = isImage,
+            modelId = modelId,
+            apiKey = apiKey,
+            baseUrl = baseUrl
+        )
+    }
+
+    /**
+     * 直接传入 apiKey 的版本，便于测试或自定义密钥来源。
+     * @return 原始 JSON 响应字符串
      */
     fun chatWithImageUrl(
         tags: List<String>,
@@ -30,12 +57,6 @@ object ArkChatClient {
     ): Result<String> {
         if (content.isBlank()) return Result.failure(IllegalArgumentException("content is blank"))
         if (apiKey.isBlank()) return Result.failure(IllegalArgumentException("apiKey is blank"))
-
-        val userPayloadObj = JsonObject().apply {
-            add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
-            addProperty("content", content)
-            addProperty("isimage", if (isImage) 1 else 0)
-        }
 
         // schema 直接用 JSON 字符串定义，避免手写大量节点出错
         val schemaObj = JsonParser.parseString(
@@ -53,8 +74,19 @@ object ArkChatClient {
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "properties": {},
-                        "additionalProperties": true
+                        "properties": {
+                          "startTime": {"type": "string"},
+                          "endTime": {"type": "string"},
+                          "people": {"type": "array", "items": {"type": "string"}},
+                          "theme": {"type": "string"},
+                          "coreTasks": {"type": "array", "items": {"type": "string"}},
+                          "position": {"type": "array", "items": {"type": "string"}},
+                          "tags": {"type": "array", "items": {"type": "string"}},
+                          "category": {"type": "string"},
+                          "suggestedActions": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["startTime", "endTime", "people", "theme", "coreTasks", "position", "tags", "category", "suggestedActions"],
+                        "additionalProperties": false
                       }
                     }
                   },
@@ -74,13 +106,18 @@ object ArkChatClient {
                           "header": {"type": "string"},
                           "content": {"type": "string"},
                           "node": {
-                            "type": "object",
-                            "properties": {
-                              "targetId": {"type": "number"},
-                              "relationship": {"type": "string"}
-                            },
-                            "required": ["targetId","relationship"],
-                            "additionalProperties": false
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "targetId": {"type": "number"},
+                                  "relationship": {"type": "string"}
+                                },
+                                "required": ["targetId","relationship"],
+                                "additionalProperties": false
+                              },
+                              {"type": "null"}
+                            ]
                           }
                         },
                         "required": ["id","header","content","node"],
@@ -107,65 +144,63 @@ object ArkChatClient {
             """.trimIndent()
         ).asJsonObject
 
+        // 构建用户文本提示
+        val textPrompt = JsonObject().apply {
+            add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
+            addProperty("isimage", if (isImage) 1 else 0)
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English")
+            add("schema", schemaObj)
+        }.toString()
+
         val requestJson = JsonObject().apply {
             addProperty("model", modelId)
             add("messages", JsonArray().apply {
                 add(JsonObject().apply {
-                    addProperty("role", "system")
-                    addProperty("content", "你是 AI 助手，必须按指定 JSON schema 返回，不得添加多余字段。")
-                })
-                add(JsonObject().apply {
                     addProperty("role", "user")
                     add("content", JsonArray().apply {
+                        // 如果是图片，先添加 image_url
+                        if (isImage) {
+                            add(JsonObject().apply {
+                                addProperty("type", "image_url")
+                                add("image_url", JsonObject().apply {
+                                    addProperty("url", "data:image/jpeg;base64,$content")
+                                })
+                            })
+                        }
+                        // 添加 text
                         add(JsonObject().apply {
                             addProperty("type", "text")
-                            addProperty("text", userPayloadObj.toString())
+                            addProperty("text", if (isImage) textPrompt else content)
                         })
                     })
                 })
             })
-            add("response_format", JsonObject().apply {
-                addProperty("type", "json_schema")
-                add("json_schema", JsonObject().apply {
-                    addProperty("name", "structured_summary")
-                    add("schema", schemaObj)
-                    addProperty("strict", true)
-                })
-            })
-            add("thinking", JsonObject().apply { addProperty("type", "disabled") })
         }
-
-        val jsonString = gson.toJson(requestJson)
-        println("ArkChatClient Request JSON: $jsonString")
 
         return runCatching {
-            executeRequestWithRetry(baseUrl, apiKey, jsonString)
-        }
-    }
+            val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 30_000
+                readTimeout = 120_000  // 图片处理需要较长时间
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Authorization", "Bearer $apiKey")
+            }
 
-    private fun executeRequestWithRetry(baseUrl: String, apiKey: String, jsonBody: String): String {
-        val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
-            requestMethod = "POST"
-            connectTimeout = 10_000
-            readTimeout = 20_000
-            doOutput = true
-            setRequestProperty("Content-Type", "application/json")
-            setRequestProperty("Authorization", "Bearer $apiKey")
-        }
+            connection.outputStream.use { output ->
+                output.write(gson.toJson(requestJson).toByteArray(Charsets.UTF_8))
+                output.flush()
+            }
 
-        connection.outputStream.use { output ->
-            output.write(jsonBody.toByteArray(Charsets.UTF_8))
-            output.flush()
-        }
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream ?: connection.inputStream
+            val body = stream.bufferedReader().use(BufferedReader::readText)
+            connection.disconnect()
 
-        val responseCode = connection.responseCode
-        val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream ?: connection.inputStream
-        val body = stream.bufferedReader().use(BufferedReader::readText)
-        connection.disconnect()
-
-        if (responseCode !in 200..299) {
-            error("HTTP $responseCode $body")
+            if (responseCode !in 200..299) {
+                error("HTTP $responseCode $body")
+            }
+            body
         }
-        return body
     }
 }
