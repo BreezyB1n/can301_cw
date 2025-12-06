@@ -583,7 +583,10 @@ fun AccountDetailsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showEditUsernameDialog = false }) { Text("Cancel") }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 

@@ -220,7 +220,7 @@ fun SearchBarSection() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "搜索 Memo...",
+                text = "Search Memo...",
                 color = Color.Gray,
                 style = MaterialTheme.typography.bodyLarge
             )
