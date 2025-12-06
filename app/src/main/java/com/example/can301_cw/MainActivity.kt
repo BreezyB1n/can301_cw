@@ -47,6 +47,8 @@ import com.example.can301_cw.ui.detail.MemoDetailScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
 import androidx.compose.ui.platform.LocalContext
+import com.example.can301_cw.notification.NotificationHelper
+import com.example.can301_cw.notification.ReminderScheduler
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -65,6 +67,7 @@ import com.example.can301_cw.ui.detail.MemoDetailViewModel
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
+    private val reminderScheduler by lazy { ReminderScheduler(this) }
     private val homeViewModel by viewModels<HomeViewModel> {
         HomeViewModel.Factory(database.memoDao(), imageStorageManager)
     }
@@ -75,6 +78,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 创建通知渠道
+        NotificationHelper.createNotificationChannel(this)
 
         // Restore user session
         lifecycleScope.launch {
@@ -312,7 +318,8 @@ class MainActivity : ComponentActivity() {
                             factory = AddMemoViewModel.Factory(
                                 application,
                                 database.memoDao(),
-                                imageStorageManager
+                                imageStorageManager,
+                                reminderScheduler
                             )
                         )
 
