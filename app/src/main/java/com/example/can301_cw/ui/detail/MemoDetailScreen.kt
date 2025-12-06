@@ -1,5 +1,7 @@
 package com.example.can301_cw.ui.detail
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,7 +12,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.can301_cw.model.*
+import com.example.can301_cw.data.mockMemoDetailData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,22 +34,22 @@ fun MemoDetailScreen(
 ) {
     val scrollState = rememberScrollState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("信息", "日程")
+    val tabs = listOf("Info", "Schedule")
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("详细信息", style = MaterialTheme.typography.titleMedium) },
+                title = { Text("Memo Detail", style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                actions = {
-                    IconButton(onClick = { /* Edit action */ }) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "Edit")
-                    }
-                }
+                // actions = {
+                //     IconButton(onClick = { /* Edit action */ }) {
+                //         Icon(Icons.Outlined.Edit, contentDescription = "Edit")
+                //     }
+                // }
             )
         },
     ) { paddingValues ->
@@ -116,15 +118,15 @@ fun HeaderSection(data: ApiResponse) {
         // Metadata Rows
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-            Text("创建时间: 2025-12-01", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text("Created: 2025-12-01", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-            Text("来源: 手动创建", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text("Source: Manually", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF4CAF50)) // Green
-            Text("AI分析完成", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
+            Text("AI Analysis: Completed", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
         }
 
         // Tags
@@ -132,17 +134,25 @@ fun HeaderSection(data: ApiResponse) {
         if (tags.isNotEmpty()) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .horizontalScroll(rememberScrollState())
             ) {
-                tags.take(4).forEach { tag ->
-                    SuggestionChip(
-                        onClick = { },
-                        label = { Text(tag) },
-                        colors = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        border = null
-                    )
+                tags.forEach { tag ->
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(24.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = tag,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -154,18 +164,17 @@ fun AISummarySection(data: ApiResponse) {
     val summary = data.information.summary
     
     Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(24.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "AI 摘要",
+                text = "AI Summary",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface 
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -182,10 +191,9 @@ fun InformationTabContent(info: Information) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         info.informationItems.forEach { item ->
             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                shape = RoundedCornerShape(24.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -208,120 +216,167 @@ fun InformationTabContent(info: Information) {
 @Composable
 fun ScheduleTabContent(schedule: Schedule) {
     val task = schedule.tasks.firstOrNull() ?: return
-    
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        
-        // Core Tasks
-        if (task.coreTasks.isNotEmpty()) {
-            Text(
-                text = "核心任务",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ScheduleTaskCard(task)
+}
+
+@Composable
+fun ScheduleTaskCard(task: ScheduleTask) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Header: Title and Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = task.theme.ifEmpty { "Task" },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            // Time
+            if (task.startTime.isNotEmpty()) {
+                Text(
+                    text = task.startTime,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            )
+
+            // Core Tasks
+            if (task.coreTasks.isNotEmpty()) {
+                Text(
+                    text = "Core Tasks:",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     task.coreTasks.forEach { coreTask ->
-                        Row(
-                            modifier = Modifier.padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
+                        Row(verticalAlignment = Alignment.Top) {
                             Icon(
-                                Icons.Outlined.CheckCircle,
+                                imageVector = Icons.Outlined.CheckCircle,
                                 contentDescription = null,
                                 tint = Color(0xFF4CAF50),
                                 modifier = Modifier.size(20.dp).padding(top = 2.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = coreTask, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                text = coreTask,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
                     }
                 }
             }
-        }
 
-        // Suggested Actions
-        if (task.suggestedActions.isNotEmpty()) {
-            Text(
-                text = "建议行动",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            // Suggested Actions
+            if (task.suggestedActions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Suggested Actions:",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     task.suggestedActions.forEach { action ->
-                        Row(
-                            modifier = Modifier.padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
+                        Row(verticalAlignment = Alignment.Top) {
                             Icon(
-                                Icons.Outlined.Lightbulb,
+                                imageVector = Icons.Outlined.Lightbulb,
                                 contentDescription = null,
-                                tint = Color(0xFFFFC107), // Amber
+                                tint = Color(0xFFFFC107),
                                 modifier = Modifier.size(20.dp).padding(top = 2.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = action, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                text = action,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                         }
                     }
+                }
+            }
+            
+            //// Tags
+            //  if (task.tags.isNotEmpty()) {
+            //     Spacer(modifier = Modifier.height(2.dp))
+            //     Row(
+            //         horizontalArrangement = Arrangement.spacedBy(6.dp),
+            //         modifier = Modifier.horizontalScroll(rememberScrollState())
+            //     ) {
+            //         task.tags.forEach { tag ->
+            //             SuggestionChip(
+            //                 onClick = { },
+            //                 label = { 
+            //                     Text(
+            //                         tag, 
+            //                         style = MaterialTheme.typography.labelMedium
+            //                     ) 
+            //                 },
+            //                 colors = SuggestionChipDefaults.suggestionChipColors(
+            //                     containerColor = MaterialTheme.colorScheme.surfaceVariant
+            //                 ),
+            //                 border = null,
+            //                 modifier = Modifier.height(30.dp),
+            //                 shape = RoundedCornerShape(8.dp)
+            //             )
+            //         }
+            //     }
+            // }
+
+            // Footer Actions
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { /* Add Reminder */ },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Set Reminder", style = MaterialTheme.typography.labelMedium)
+                }
+
+                Button(
+                    onClick = { /* Delete */ },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(15.dp),
+                    modifier = Modifier.height(30.dp)
+                ) {
+                    Icon(Icons.Outlined.Delete, contentDescription = "Ignore", tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
                 }
             }
         }
     }
 }
 
-val mockMemoDetailData = ApiResponse(
-    mostPossibleCategory = "INFORMATION",
-    schedule = Schedule(
-        title = "关注软件工程职位招聘趋势",
-        category = "职业发展",
-        tasks = listOf(
-            ScheduleTask(
-                startTime = "2025-12-01T19:00:00+08:00",
-                endTime = "2025-12-01T20:00:00+08:00",
-                theme = "招聘市场分析",
-                coreTasks = listOf(
-                    "阅读“程序员并没有想象中那么危险”相关分析报告。",
-                    "了解2024-2025年软件工程职位招聘数量变化趋势。",
-                    "分析机器、数据、后端、DevOps、质量保证、安全、移动端、前端等不同技术方向职位的招聘数量变化百分比。"
-                ),
-                position = listOf("居家/办公室"),
-                tags = listOf("职业规划", "招聘", "软件工程", "市场趋势"),
-                category = "学习研究",
-                suggestedActions = listOf(
-                    "根据报告内容，评估自身技能与市场需求匹配度。",
-                    "思考哪些技术领域在未来招聘市场中更具潜力。",
-                    "查看Bloomberry.com获取更多相关数据和分析。",
-                    "如果对数据分析感兴趣，可以进一步研究数据工程师和数据科学家的职位变化。"
-                ),
-                people = emptyList()
-            )
-        )
-    ),
-    information = Information(
-        title = "2024-2025年软件工程职位新招聘职位数量变化百分比",
-        informationItems = listOf(
-            InformationItem(1, "机器学习工程师", "机器学习工程师的招聘职位数量增长了39.62%。", null),
-            InformationItem(2, "数据工程师", "数据工程师的招聘职位数量增长了9.35%。", InformationNode(3, "CHILD")),
-            InformationItem(3, "后端工程师", "后端工程师的招聘职位数量增长了4.44%。", InformationNode(4, "CHILD")),
-            InformationItem(4, "数据科学家", "数据科学家的招聘职位数量增长了3.48%。", InformationNode(5, "CHILD")),
-            InformationItem(5, "DevOps工程师", "DevOps工程师的招聘职位数量增长了2.92%。", InformationNode(6, "CHILD")),
-            InformationItem(6, "质量保证工程师", "质量保证工程师的招聘职位数量增长了1.00%。", InformationNode(7, "CHILD")),
-            InformationItem(7, "安全工程师", "安全工程师的招聘职位数量变化为-0.35%。", InformationNode(8, "CHILD")),
-            InformationItem(8, "移动端工程师", "移动端工程师的招聘职位数量下降了5.73%。", InformationNode(9, "CHILD")),
-            InformationItem(9, "前端工程师", "前端工程师的招聘职位数量下降了9.89%。", InformationNode(10, "CHILD")),
-            InformationItem(10, "招聘职位平均下降", "整体招聘职位平均下降了8%。", null)
-        ),
-        relatedItems = listOf("软件工程", "招聘趋势", "职业发展"),
-        summary = "该图表展示了2024-2025年间不同软件工程职位新招聘职位数量的变化百分比。其中，机器学习工程师的招聘职位数量增长最为显著，达到39.62%，而前端工程师的招聘职位数量下降最为严重，为-9.89%。整体来看，部分技术岗位的招聘需求在增长，但平均招聘职位数量有所下降。",
-        tags = listOf("招聘", "软件工程", "职业趋势")
-    )
-)
 
 @Preview(showBackground = true)
 @Composable

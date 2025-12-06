@@ -480,15 +480,18 @@ fun MemoBottomInfo(item: MemoItem) {
 @Composable
 fun TagChip(text: String) {
     Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = Color(0xFFF0F0F0)
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.height(24.dp)
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.Gray,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+        }
     }
 }
 
