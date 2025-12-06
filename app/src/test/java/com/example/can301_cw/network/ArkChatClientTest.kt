@@ -1,6 +1,5 @@
 package com.example.can301_cw.network
 
-import com.example.can301_cw.network.ArkChatClient
 import org.junit.Test
 import java.util.Base64
 
@@ -23,7 +22,7 @@ class ArkChatClientTest {
         // 从 test resources 目录读取图片并转换为 base64
         val inputStream = javaClass.classLoader?.getResourceAsStream("test.jpg")
             ?: error("图片文件不存在，请将 test.jpg 放到 app/src/test/resources/ 目录下")
-        
+
         val imageBytes = inputStream.readBytes()
         val base64Content = Base64.getEncoder().encodeToString(imageBytes)
 

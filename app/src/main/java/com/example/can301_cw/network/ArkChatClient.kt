@@ -21,6 +21,7 @@ object ArkChatClient {
     /**
      * 结构化对话：发送 {tags, content, isimage}，要求服务端返回指定 schema。
      * content: 文本或 base64(当 isImage=true 时)。
+     * @return 原始 JSON 响应字符串
      */
     fun chatWithImageUrl(
         context: Context,
@@ -44,23 +45,18 @@ object ArkChatClient {
 
     /**
      * 直接传入 apiKey 的版本，便于测试或自定义密钥来源。
+     * @return 原始 JSON 响应字符串
      */
     fun chatWithImageUrl(
         tags: List<String>,
         content: String,
         isImage: Boolean,
         modelId: String = "doubao-seed-1-6-vision-250815",
-        apiKey: String,
+        apiKey: String = ARK_API_KEY,
         baseUrl: String = DEFAULT_BASE_URL
     ): Result<String> {
         if (content.isBlank()) return Result.failure(IllegalArgumentException("content is blank"))
         if (apiKey.isBlank()) return Result.failure(IllegalArgumentException("apiKey is blank"))
-
-        val userPayloadObj = JsonObject().apply {
-            add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
-            addProperty("content", content)
-            addProperty("isimage", if (isImage) 1 else 0)
-        }
 
         // schema 直接用 JSON 字符串定义，避免手写大量节点出错
         val schemaObj = JsonParser.parseString(
@@ -152,7 +148,7 @@ object ArkChatClient {
         val textPrompt = JsonObject().apply {
             add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
             addProperty("isimage", if (isImage) 1 else 0)
-            addProperty("instruction", "根据指定的json_schema理解图片内容并返回规定的json格式，不得添加多余字段。")
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English")
             add("schema", schemaObj)
         }.toString()
 
