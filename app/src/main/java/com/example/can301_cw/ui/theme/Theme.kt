@@ -60,16 +60,16 @@ private val GreenColorScheme = lightColorScheme(
     secondaryContainer = GreenContainer
 )
 
-private val SkyBlueColorScheme = lightColorScheme(
-    primary = SkyBluePrimary,
-    secondary = SkyBlueSecondary,
-    tertiary = SkyBlueTertiary,
-    background = SkyBlueBackground,
-    surface = SkyBlueSurface,
-    surfaceContainer = SkyBlueSurface,
-    surfaceContainerLow = SkyBlueCardBackground,
-    surfaceVariant = SkyBlueSecondary.copy(alpha = 0.3f),
-    secondaryContainer = SkyBlueContainer
+private val PurpleColorScheme = lightColorScheme(
+    primary = PurplePrimary,
+    secondary = PurpleSecondary,
+    tertiary = PurpleTertiary,
+    background = PurpleBackground,
+    surface = PurpleSurface,
+    surfaceContainer = PurpleSurface,
+    surfaceContainerLow = PurpleCardBackground,
+    surfaceVariant = PurpleSecondary.copy(alpha = 0.3f),
+    secondaryContainer = PurpleContainer
 )
 
 private val CherryBlossomColorScheme = lightColorScheme(
@@ -97,7 +97,7 @@ private val StoneropGreenColorScheme = lightColorScheme(
 )
 
 enum class AppTheme {
-    Blue, Yellow, Green, SkyBlue, CherryBlossom, StoneropGreen, Custom
+    Blue, Yellow, Green, Purple, CherryBlossom, StoneropGreen, Custom
 }
 
 private fun generateCustomColorScheme(primaryColor: Color): ColorScheme {
@@ -184,7 +184,7 @@ fun CAN301_CWTheme(
         appTheme == AppTheme.Blue -> BlueColorScheme
         appTheme == AppTheme.Yellow -> YellowColorScheme
         appTheme == AppTheme.Green -> GreenColorScheme
-        appTheme == AppTheme.SkyBlue -> SkyBlueColorScheme
+        appTheme == AppTheme.Purple -> PurpleColorScheme
         appTheme == AppTheme.CherryBlossom -> CherryBlossomColorScheme
         appTheme == AppTheme.StoneropGreen -> StoneropGreenColorScheme
         else -> BlueColorScheme  // Fallback to Blue

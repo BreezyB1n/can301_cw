@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -96,7 +97,9 @@ fun CustomColorPickerDialog(
                         text = { 
                             Text(
                                 "Grid",
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     )
@@ -106,7 +109,9 @@ fun CustomColorPickerDialog(
                         text = { 
                             Text(
                                 "Spectrum",
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     )
@@ -116,7 +121,9 @@ fun CustomColorPickerDialog(
                         text = { 
                             Text(
                                 "Sliders",
-                                style = MaterialTheme.typography.labelMedium
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     )

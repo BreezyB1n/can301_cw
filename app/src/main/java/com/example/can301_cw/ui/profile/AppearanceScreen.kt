@@ -65,7 +65,7 @@ fun AppearanceScreen(
                     Triple(AppTheme.Blue, BluePrimary, "Blue"),
                     Triple(AppTheme.Yellow, YellowPrimary, "Yellow"),
                     Triple(AppTheme.Green, GreenPrimary, "Green"),
-                    Triple(AppTheme.SkyBlue, SkyBluePrimary, "Sky Blue"),
+                    Triple(AppTheme.Purple, PurplePrimary, "Purple"),
                     Triple(AppTheme.CherryBlossom, CherryBlossomPrimary, "Cherry"),
                     // Triple(AppTheme.StoneropGreen, StoneropGreenPrimary, "Stone")
                 )
