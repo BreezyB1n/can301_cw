@@ -185,7 +185,6 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         )
-                        )
                     }
 
                     composable(
@@ -217,12 +216,6 @@ class MainActivity : ComponentActivity() {
                     ) {
                         MemoDetailScreen(
                             onBackClick = { navController.popBackStack() }
-                            onAddMemoClick = { navController.navigate("add_memo") },
-                            onLogout = {
-                                navController.navigate("login") {
-                                    popUpTo("main") { inclusive = true }
-                                }
-                            }
                         )
                     }
 
