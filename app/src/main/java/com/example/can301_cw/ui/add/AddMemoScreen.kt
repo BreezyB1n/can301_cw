@@ -149,7 +149,12 @@ fun AddMemoScreen(
                     OutlinedTextField(
                         value = uiState.title,
                         onValueChange = { viewModel.updateTitle(it) },
-                        placeholder = { Text("Title") },
+                        placeholder = { 
+                            Text(
+                                "Title", 
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            ) 
+                        },
                         textStyle = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -167,7 +172,12 @@ fun AddMemoScreen(
                     OutlinedTextField(
                         value = uiState.content,
                         onValueChange = { viewModel.updateContent(it) },
-                        placeholder = { Text("Write your thoughts here, or just upload an image from below.") },
+                        placeholder = { 
+                            Text(
+                                "Write your thoughts here, or just upload an image from below.",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            ) 
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(150.dp),
