@@ -130,7 +130,7 @@ fun MemoDetailContent(
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
+                        contentDescription = "Full screen image",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
