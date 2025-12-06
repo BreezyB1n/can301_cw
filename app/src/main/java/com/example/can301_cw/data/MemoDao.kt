@@ -33,4 +33,7 @@ interface MemoDao {
     
     @Query("DELETE FROM memos")
     suspend fun deleteAll()
+
+    @Query("SELECT * FROM memos WHERE tags LIKE '%' || :tag || '%' ORDER BY createdAt DESC")
+    fun getMemosByTag(tag: String): Flow<List<MemoItem>>
 }
