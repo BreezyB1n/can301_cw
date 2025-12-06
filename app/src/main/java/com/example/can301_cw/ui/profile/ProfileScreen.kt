@@ -47,7 +47,8 @@ private enum class ProfileDestination {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel,
+    onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
@@ -220,7 +221,10 @@ fun ProfileScreen(
                         if (uiState.user != null) {
                             Spacer(modifier = Modifier.height(16.dp))
                             Button(
-                                onClick = { viewModel.logout() },
+                                onClick = { 
+                                    viewModel.logout()
+                                    onLogout()
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             ) {
