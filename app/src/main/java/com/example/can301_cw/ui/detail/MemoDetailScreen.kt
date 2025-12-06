@@ -33,8 +33,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -193,6 +198,17 @@ fun MemoDetailContent(
             // ... (rest of the content)
 
             // Tabs
+            val pagerState = rememberPagerState(pageCount = { tabs.size })
+            val coroutineScope = rememberCoroutineScope()
+
+            LaunchedEffect(selectedTabIndex) {
+                pagerState.animateScrollToPage(selectedTabIndex)
+            }
+            
+            LaunchedEffect(pagerState.currentPage) {
+                selectedTabIndex = pagerState.currentPage
+            }
+
             TabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.Transparent,
@@ -208,16 +224,26 @@ fun MemoDetailContent(
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
+                        onClick = { 
+                            selectedTabIndex = index 
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
                         text = { Text(title) }
                     )
                 }
             }
 
-            // Tab Content
-            when (selectedTabIndex) {
-                0 -> InformationTabContent(data.information)
-                1 -> ScheduleTabContent(data.schedule)
+            // Tab Content with HorizontalPager
+            HorizontalPager(
+                state = pagerState,
+                verticalAlignment = Alignment.Top
+            ) { page ->
+                when (page) {
+                    0 -> InformationTabContent(data.information)
+                    1 -> ScheduleTabContent(data.schedule)
+                }
             }
             
             // Spacer for bottom bar
