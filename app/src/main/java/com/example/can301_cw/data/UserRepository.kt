@@ -224,6 +224,10 @@ class UserRepository(
     suspend fun updateUser(user: User) {
         val updatedUser = user.copy(updatedAt = Date())
         userDao.updateUser(updatedUser)
+        // Update local cache to trigger flow emission
+        if (_currentUser.value?.id == user.id) {
+            _currentUser.value = updatedUser
+        }
     }
 
     suspend fun updatePassword(user: User, newPassword: String): Boolean {

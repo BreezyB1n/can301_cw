@@ -95,7 +95,34 @@ import com.example.can301_cw.model.UserStats
 import com.example.can301_cw.ui.theme.BluePrimary
 import com.example.can301_cw.ui.theme.CustomColorPickerDialog
 import kotlinx.coroutines.launch
-import java.io.File
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.net.Uri
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 private enum class ProfileDestination {
     Main,
@@ -512,18 +539,26 @@ fun AccountDetailsScreen(
     val context = LocalContext.current
     val imageStorageManager = remember { ImageStorageManager(context) }
     var showEditUsernameDialog by remember { mutableStateOf(false) }
+    
+    // State for image cropping
+    var tempAvatarUri by remember { mutableStateOf<Uri?>(null) }
 
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) {
-            // Save image to local storage
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val bytes = inputStream?.readBytes()
-            inputStream?.close()
-            if (bytes != null) {
+            tempAvatarUri = uri
+        }
+    }
+
+    if (tempAvatarUri != null) {
+        ImageCropDialog(
+            imageUri = tempAvatarUri!!,
+            onDismiss = { tempAvatarUri = null },
+            onConfirm = { bytes ->
                 val path = imageStorageManager.saveImage(bytes)
                 onUpdateAvatar(path)
+                tempAvatarUri = null
             }
-        }
+        )
     }
 
     if (showEditUsernameDialog) {
@@ -812,6 +847,196 @@ fun StatItem(label: String, value: String) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+fun ImageCropDialog(
+    imageUri: Uri,
+    onDismiss: () -> Unit,
+    onConfirm: (ByteArray) -> Unit
+) {
+    val context = LocalContext.current
+    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(imageUri) {
+        withContext(Dispatchers.IO) {
+            context.contentResolver.openInputStream(imageUri)?.use {
+                bitmap = BitmapFactory.decodeStream(it)
+            }
+        }
+    }
+
+    if (bitmap != null) {
+        CropContent(bitmap!!, onDismiss, onConfirm)
+    } else {
+        Dialog(onDismissRequest = onDismiss) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+}
+
+@Composable
+fun CropContent(
+    bitmap: Bitmap,
+    onDismiss: () -> Unit,
+    onConfirm: (ByteArray) -> Unit
+) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var isInitialized by remember { mutableStateOf(false) }
+    
+    val density = LocalDensity.current
+    val cropSizeDp = 300.dp
+    val cropSizePx = with(density) { cropSizeDp.toPx() }
+    
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            val screenWidth = constraints.maxWidth.toFloat()
+            val screenHeight = constraints.maxHeight.toFloat()
+            
+            val minDimension = min(bitmap.width.toFloat(), bitmap.height.toFloat())
+            val minScale = if (minDimension > 0) cropSizePx / minDimension else 1f
+
+            // Initialize scale to fit image (covering the crop area)
+            if (!isInitialized && screenWidth > 0 && screenHeight > 0) {
+                scale = minScale
+                isInitialized = true
+            }
+            
+            // Center of the screen
+            val cx = screenWidth / 2
+            val cy = screenHeight / 2
+
+            // Gestures
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTransformGestures { centroid, pan, zoom, _ ->
+                            val oldScale = scale
+                            val newScale = (scale * zoom).coerceIn(minScale, 10f)
+                            val effectiveZoom = newScale / oldScale
+                            
+                            val cOffset = centroid - Offset(cx, cy)
+                            
+                            // Adjust offset to keep centroid fixed during zoom
+                            var newOffset = offset * effectiveZoom + cOffset * (1f - effectiveZoom) + pan
+                            
+                            // Constrain offset to keep crop area within image bounds
+                            val imageWidth = bitmap.width * newScale
+                            val imageHeight = bitmap.height * newScale
+                            
+                            val maxOffsetX = (imageWidth - cropSizePx) / 2
+                            val maxOffsetY = (imageHeight - cropSizePx) / 2
+                            
+                            newOffset = Offset(
+                                x = newOffset.x.coerceIn(-kotlin.math.max(0f, maxOffsetX), kotlin.math.max(0f, maxOffsetX)),
+                                y = newOffset.y.coerceIn(-kotlin.math.max(0f, maxOffsetY), kotlin.math.max(0f, maxOffsetY))
+                            )
+                            
+                            offset = newOffset
+                            scale = newScale
+                        }
+                    }
+            ) {
+                // Draw Image
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val imageWidth = bitmap.width.toFloat()
+                    val imageHeight = bitmap.height.toFloat()
+
+                    with(drawContext.canvas) {
+                        save()
+                        translate(cx + offset.x, cy + offset.y)
+                        scale(scale, scale)
+                        translate(-imageWidth / 2, -imageHeight / 2)
+                        
+                        drawImage(bitmap.asImageBitmap())
+                        restore()
+                    }
+                    
+                    // Draw Overlay
+                    val circlePath = Path().apply {
+                        addOval(Rect(center = Offset(cx, cy), radius = cropSizePx / 2))
+                    }
+                    
+                    clipPath(circlePath, clipOp = androidx.compose.ui.graphics.ClipOp.Difference) {
+                        drawRect(Color.Black.copy(alpha = 0.6f))
+                    }
+                    
+                    drawCircle(
+                        color = Color.White,
+                        radius = cropSizePx / 2,
+                        center = Offset(cx, cy),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                    )
+                }
+            }
+            
+            // Buttons
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f))
+                ) {
+                    Text("Cancel")
+                }
+                
+                Button(
+                    onClick = {
+                        val targetSize = 512
+                        val resultBitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
+                        val canvas = android.graphics.Canvas(resultBitmap)
+                        
+                        // 1. Draw Circular Mask
+                        val paint = Paint().apply {
+                            isAntiAlias = true
+                            color = android.graphics.Color.WHITE
+                        }
+                        canvas.drawCircle(targetSize / 2f, targetSize / 2f, targetSize / 2f, paint)
+                        
+                        // 2. Draw Image with SRC_IN to keep only intersection
+                        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+                        
+                        val ratio = targetSize / cropSizePx
+                        val matrix = Matrix()
+                        matrix.postTranslate(-bitmap.width / 2f, -bitmap.height / 2f)
+                        matrix.postScale(scale * ratio, scale * ratio)
+                        matrix.postTranslate(offset.x * ratio, offset.y * ratio)
+                        matrix.postTranslate(targetSize / 2f, targetSize / 2f)
+                        
+                        canvas.drawBitmap(bitmap, matrix, paint)
+                        
+                        val stream = ByteArrayOutputStream()
+                        // Use PNG to preserve transparency
+                        resultBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                        onConfirm(stream.toByteArray())
+                    }
+                ) {
+                    Text("Confirm")
+                }
+            }
+        }
     }
 }
 
