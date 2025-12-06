@@ -2,6 +2,9 @@ package com.example.can301_cw.data
 
 import com.example.can301_cw.model.User
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.security.MessageDigest
 import java.util.Date
 
@@ -9,6 +12,9 @@ import java.util.Date
  * Repository for User operations, including registration and authentication logic.
  */
 class UserRepository(private val userDao: UserDao) {
+
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
     /**
      * Registration result sealed class
@@ -65,6 +71,7 @@ class UserRepository(private val userDao: UserDao) {
 
         return try {
             userDao.insertUser(user)
+            _currentUser.value = user
             RegisterResult.Success(user)
         } catch (e: Exception) {
             RegisterResult.Error("Registration failed: ${e.message}")
@@ -105,7 +112,12 @@ class UserRepository(private val userDao: UserDao) {
             return LoginResult.Error("Incorrect password")
         }
 
+        _currentUser.value = user
         return LoginResult.Success(user)
+    }
+
+    fun logout() {
+        _currentUser.value = null
     }
 
     /**

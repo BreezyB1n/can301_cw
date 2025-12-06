@@ -1,6 +1,7 @@
 package com.example.can301_cw.network
 
 import org.junit.Test
+import java.util.Base64
 
 class ArkChatClientTest {
 
@@ -18,12 +19,16 @@ class ArkChatClientTest {
 
     @Test
     fun callStructuredSchemaWithImageBase64() {
-        // 使用给定图片 URL（服务端需支持 image_url 解析或自行下载转 base64）
-        val imageUrl = "https://ark-project.tos-cn-beijing.ivolces.com/images/view.jpeg"
+        // 从 test resources 目录读取图片并转换为 base64
+        val inputStream = javaClass.classLoader?.getResourceAsStream("test.jpg")
+            ?: error("图片文件不存在，请将 test.jpg 放到 app/src/test/resources/ 目录下")
+
+        val imageBytes = inputStream.readBytes()
+        val base64Content = Base64.getEncoder().encodeToString(imageBytes)
 
         val result = ArkChatClient.chatWithImageUrl(
             tags = listOf("图片", "测试"),
-            content = imageUrl,
+            content = base64Content,
             isImage = true
         )
 

@@ -54,6 +54,11 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import com.example.can301_cw.data.UserRepository
+import com.example.can301_cw.ui.auth.AuthViewModel
+import com.example.can301_cw.ui.auth.LoginScreen
+import com.example.can301_cw.ui.auth.RegisterScreen
+import com.example.can301_cw.ui.profile.ProfileViewModel
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -62,6 +67,9 @@ class MainActivity : ComponentActivity() {
         HomeViewModel.Factory(database.memoDao(), imageStorageManager)
     }
     private val settingsRepository by lazy { SettingsRepository(database.settingsDao()) }
+
+    // 【新增 1】初始化 UserRepository
+    private val userRepository by lazy { UserRepository(database.userDao()) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -118,10 +126,51 @@ class MainActivity : ComponentActivity() {
             CAN301_CWTheme(appTheme = appTheme, customPrimaryColor = customColor, darkTheme = darkTheme) {
                 val navController = rememberNavController()
 
-                NavHost(navController = navController, startDestination = "main") {
+                // 【修改 2】将 startDestination 从 "main" 改为 "login"
+                NavHost(navController = navController, startDestination = "login") {
+
+                    // 【新增 3】登录页面路由
+                    composable("login") {
+                        val authViewModel: AuthViewModel = viewModel(
+                            factory = AuthViewModel.Factory(userRepository)
+                        )
+                        LoginScreen(
+                            viewModel = authViewModel,
+                            onLoginSuccess = {
+                                // 登录成功后，跳转到主页，并清除登录页面的堆栈
+                                navController.navigate("main") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            },
+                            onNavigateToRegister = {
+                                navController.navigate("register")
+                            }
+                        )
+                    }
+
+                    // 【新增 4】注册页面路由
+                    composable("register") {
+                        val authViewModel: AuthViewModel = viewModel(
+                            factory = AuthViewModel.Factory(userRepository)
+                        )
+                        RegisterScreen(
+                            viewModel = authViewModel,
+                            onRegisterSuccess = {
+                                // 注册成功（并自动登录）后，跳转到主页
+                                navController.navigate("main") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+                            },
+                            onNavigateBack = {
+                                navController.popBackStack()
+                            }
+                        )
+                    }
+
                     composable("main") {
                         MainScreen(
                             homeViewModel = homeViewModel,
+                            userRepository = userRepository,
                             currentTheme = appTheme,
                             onThemeChange = { newTheme ->
                                 lifecycleScope.launch {
@@ -129,7 +178,13 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onAddMemoClick = { navController.navigate("add_memo") },
-                            onMemoClick = { navController.navigate("memo_detail") }
+                            onMemoClick = { navController.navigate("memo_detail") },
+                            onLogout = {
+                                navController.navigate("login") {
+                                    popUpTo("main") { inclusive = true }
+                                }
+                            }
+                        )
                         )
                     }
 
@@ -162,6 +217,12 @@ class MainActivity : ComponentActivity() {
                     ) {
                         MemoDetailScreen(
                             onBackClick = { navController.popBackStack() }
+                            onAddMemoClick = { navController.navigate("add_memo") },
+                            onLogout = {
+                                navController.navigate("login") {
+                                    popUpTo("main") { inclusive = true }
+                                }
+                            }
                         )
                     }
 
@@ -252,10 +313,12 @@ data class BottomNavItem(
 @Composable
 fun MainScreen(
     homeViewModel: HomeViewModel,
+    userRepository: UserRepository,
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
     onAddMemoClick: () -> Unit = {}, // Pass navigation callback
-    onMemoClick: () -> Unit = {}
+    onMemoClick: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
     val items = listOf(
@@ -291,7 +354,21 @@ fun MainScreen(
                     onMemoClick = onMemoClick
                 )
                 2 -> CategoryScreen()
-                3 -> ProfileScreen()
+                3 -> {
+                    val context = LocalContext.current
+                    val application = context.applicationContext as Application
+
+                    val profileViewModel: ProfileViewModel = viewModel(
+                        factory = ProfileViewModel.Factory(
+                            application = application,
+                            userRepository = userRepository
+                        )
+                    )
+                    ProfileScreen(
+                        viewModel = profileViewModel,
+                        onLogout = onLogout
+                    )
+                }
                 else -> ContentScreen(
                     text = "This is ${items[selectedItem].name} Screen"
                 )

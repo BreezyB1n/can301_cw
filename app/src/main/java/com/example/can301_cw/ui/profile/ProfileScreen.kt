@@ -47,9 +47,8 @@ private enum class ProfileDestination {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory(
-        application = LocalContext.current.applicationContext as Application
-    ))
+    viewModel: ProfileViewModel,
+    onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
@@ -153,8 +152,8 @@ fun ProfileScreen(
                     ) {
                         // 0. User Info Header
                         UserInfoHeader(
-                            username = "John Doe",
-                            userId = "UID: 12345678"
+                            username = uiState.user?.username ?: "Guest",
+                            userId = uiState.user?.email ?: "Not Logged In"
                         )
 
                         // 1. Statistics Dashboard
@@ -217,6 +216,20 @@ fun ProfileScreen(
                                 onClick = { showClearDialog = true },
                                 showArrow = false
                             )
+                        }
+
+                        if (uiState.user != null) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { 
+                                    viewModel.logout()
+                                    onLogout()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Log Out")
+                            }
                         }
 
                         // About
