@@ -1,4 +1,4 @@
-package com.example.can301_cw.infra.db.network
+package com.example.can301_cw.network
 
 import android.content.Context
 import com.example.can301_cw.R
@@ -78,8 +78,19 @@ object ArkChatClient {
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "properties": {},
-                        "additionalProperties": true
+                        "properties": {
+                          "startTime": {"type": "string"},
+                          "endTime": {"type": "string"},
+                          "people": {"type": "array", "items": {"type": "string"}},
+                          "theme": {"type": "string"},
+                          "coreTasks": {"type": "array", "items": {"type": "string"}},
+                          "position": {"type": "array", "items": {"type": "string"}},
+                          "tags": {"type": "array", "items": {"type": "string"}},
+                          "category": {"type": "string"},
+                          "suggestedActions": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["startTime", "endTime", "people", "theme", "coreTasks", "position", "tags", "category", "suggestedActions"],
+                        "additionalProperties": false
                       }
                     }
                   },
@@ -99,13 +110,18 @@ object ArkChatClient {
                           "header": {"type": "string"},
                           "content": {"type": "string"},
                           "node": {
-                            "type": "object",
-                            "properties": {
-                              "targetId": {"type": "number"},
-                              "relationship": {"type": "string"}
-                            },
-                            "required": ["targetId","relationship"],
-                            "additionalProperties": false
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "targetId": {"type": "number"},
+                                  "relationship": {"type": "string"}
+                                },
+                                "required": ["targetId","relationship"],
+                                "additionalProperties": false
+                              },
+                              {"type": "null"}
+                            ]
                           }
                         },
                         "required": ["id","header","content","node"],
@@ -132,39 +148,44 @@ object ArkChatClient {
             """.trimIndent()
         ).asJsonObject
 
+        // 构建用户文本提示
+        val textPrompt = JsonObject().apply {
+            add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
+            addProperty("isimage", if (isImage) 1 else 0)
+            addProperty("instruction", "根据指定的json_schema理解图片内容并返回规定的json格式，不得添加多余字段。")
+            add("schema", schemaObj)
+        }.toString()
+
         val requestJson = JsonObject().apply {
             addProperty("model", modelId)
             add("messages", JsonArray().apply {
                 add(JsonObject().apply {
-                    addProperty("role", "system")
-                    addProperty("content", "你是 AI 助手，必须按指定 JSON schema 返回，不得添加多余字段。")
-                })
-                add(JsonObject().apply {
                     addProperty("role", "user")
                     add("content", JsonArray().apply {
+                        // 如果是图片，先添加 image_url
+                        if (isImage) {
+                            add(JsonObject().apply {
+                                addProperty("type", "image_url")
+                                add("image_url", JsonObject().apply {
+                                    addProperty("url", "data:image/jpeg;base64,$content")
+                                })
+                            })
+                        }
+                        // 添加 text
                         add(JsonObject().apply {
                             addProperty("type", "text")
-                            addProperty("text", userPayloadObj.toString())
+                            addProperty("text", if (isImage) textPrompt else content)
                         })
                     })
                 })
             })
-            add("response_format", JsonObject().apply {
-                addProperty("type", "json_schema")
-                add("json_schema", JsonObject().apply {
-                    addProperty("name", "structured_summary")
-                    add("schema", schemaObj)
-                    addProperty("strict", true)
-                })
-            })
-            add("thinking", JsonObject().apply { addProperty("type", "disabled") })
         }
 
         return runCatching {
             val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
-                connectTimeout = 10_000
-                readTimeout = 20_000
+                connectTimeout = 30_000
+                readTimeout = 120_000  // 图片处理需要较长时间
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Authorization", "Bearer $apiKey")
