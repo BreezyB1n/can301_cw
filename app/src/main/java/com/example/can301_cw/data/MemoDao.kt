@@ -34,8 +34,8 @@ interface MemoDao {
     @Query("DELETE FROM memos")
     suspend fun deleteAll()
     
-    @Query("SELECT * FROM memos WHERE id = :memoId")
-    suspend fun getMemoById(memoId: String): MemoItem?
+//    @Query("SELECT * FROM memos WHERE id = :memoId")
+//    suspend fun getMemoById(memoId: String): MemoItem?
     
     @Query("SELECT * FROM memos WHERE scheduledDate IS NOT NULL AND scheduledDate > :currentTime")
     suspend fun getMemosWithFutureReminders(currentTime: Long): List<MemoItem>
