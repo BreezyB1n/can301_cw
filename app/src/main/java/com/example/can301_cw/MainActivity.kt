@@ -44,6 +44,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.can301_cw.ui.add.AddMemoScreen
 import com.example.can301_cw.ui.add.AddMemoViewModel
+import com.example.can301_cw.ui.detail.MemoDetailScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +52,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import com.example.can301_cw.data.UserRepository
 import com.example.can301_cw.ui.auth.AuthViewModel
 import com.example.can301_cw.ui.auth.LoginScreen
@@ -125,7 +128,7 @@ class MainActivity : ComponentActivity() {
 
                 // 【修改 2】将 startDestination 从 "main" 改为 "login"
                 NavHost(navController = navController, startDestination = "login") {
-                    
+
                     // 【新增 3】登录页面路由
                     composable("login") {
                         val authViewModel: AuthViewModel = viewModel(
@@ -175,11 +178,44 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onAddMemoClick = { navController.navigate("add_memo") },
+                            onMemoClick = { navController.navigate("memo_detail") },
                             onLogout = {
                                 navController.navigate("login") {
                                     popUpTo("main") { inclusive = true }
                                 }
                             }
+                        )
+                    }
+
+                    composable(
+                        route = "memo_detail",
+                        enterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        }
+                    ) {
+                        MemoDetailScreen(
+                            onBackClick = { navController.popBackStack() }
                         )
                     }
 
@@ -274,6 +310,7 @@ fun MainScreen(
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
     onAddMemoClick: () -> Unit = {}, // Pass navigation callback
+    onMemoClick: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
@@ -306,13 +343,14 @@ fun MainScreen(
             when (selectedItem) {
                 0 -> HomeScreen(
                     viewModel = homeViewModel,
-                    onAddMemoClick = onAddMemoClick // Pass it down
+                    onAddMemoClick = onAddMemoClick, // Pass it down
+                    onMemoClick = onMemoClick
                 )
                 2 -> CategoryScreen()
                 3 -> {
                     val context = LocalContext.current
                     val application = context.applicationContext as Application
-                    
+
                     val profileViewModel: ProfileViewModel = viewModel(
                         factory = ProfileViewModel.Factory(
                             application = application,
