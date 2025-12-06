@@ -13,6 +13,7 @@ import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.MemoDao
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.network.ArkChatClient
+import com.example.can301_cw.notification.ReminderScheduler
 import com.google.gson.Gson
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -31,7 +32,8 @@ import java.util.Date
 class AddMemoViewModel(
     private val application: Application,
     private val memoDao: MemoDao,
-    private val imageStorageManager: ImageStorageManager
+    private val imageStorageManager: ImageStorageManager,
+    private val reminderScheduler: ReminderScheduler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddMemoUiState())
@@ -243,6 +245,12 @@ class AddMemoViewModel(
                 )
 
                 memoDao.insertMemo(memoItem)
+                
+                // 如果设置了提醒时间，注册闹钟
+                if (memoItem.scheduledDate != null) {
+                    reminderScheduler.scheduleReminder(memoItem)
+                }
+                
                 onSuccess()
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "保存失败: ${e.message}") }
@@ -255,12 +263,13 @@ class AddMemoViewModel(
     class Factory(
         private val application: Application,
         private val memoDao: MemoDao,
-        private val imageStorageManager: ImageStorageManager
+        private val imageStorageManager: ImageStorageManager,
+        private val reminderScheduler: ReminderScheduler
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(AddMemoViewModel::class.java)) {
-                return AddMemoViewModel(application, memoDao, imageStorageManager) as T
+                return AddMemoViewModel(application, memoDao, imageStorageManager, reminderScheduler) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
