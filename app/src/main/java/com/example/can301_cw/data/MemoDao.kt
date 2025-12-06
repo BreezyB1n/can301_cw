@@ -19,6 +19,9 @@ interface MemoDao {
     @Query("SELECT * FROM memos ORDER BY createdAt DESC")
     fun getAllMemos(): Flow<List<MemoItem>>
 
+    @Query("SELECT * FROM memos WHERE id = :id")
+    fun getMemoById(id: String): Flow<MemoItem?>
+
     @Query("SELECT COUNT(*) FROM memos")
     suspend fun getMemoCount(): Int
 

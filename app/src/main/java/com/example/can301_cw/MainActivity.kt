@@ -27,7 +27,6 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.example.can301_cw.data.AppDatabase
-import com.example.can301_cw.data.FakeMemoDao
 import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
@@ -59,6 +58,9 @@ import com.example.can301_cw.ui.auth.AuthViewModel
 import com.example.can301_cw.ui.auth.LoginScreen
 import com.example.can301_cw.ui.auth.RegisterScreen
 import com.example.can301_cw.ui.profile.ProfileViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.example.can301_cw.ui.detail.MemoDetailViewModel
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -69,10 +71,15 @@ class MainActivity : ComponentActivity() {
     private val settingsRepository by lazy { SettingsRepository(database.settingsDao()) }
 
     // 【新增 1】初始化 UserRepository
-    private val userRepository by lazy { UserRepository(database.userDao()) }
+    private val userRepository by lazy { UserRepository(database.userDao(), database.settingsDao()) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Restore user session
+        lifecycleScope.launch {
+            userRepository.restoreSession()
+        }
 
         handleIntent(intent)
 
@@ -127,20 +134,44 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
 
                 // 【修改 2】将 startDestination 从 "main" 改为 "login"
-                NavHost(navController = navController, startDestination = "login") {
+                NavHost(navController = navController, startDestination = "main") {
 
                     // 【新增 3】登录页面路由
-                    composable("login") {
+                    composable(
+                        route = "login",
+                        enterTransition = {
+                            slideInVertically(
+                                initialOffsetY = { it }, // Slide in from bottom
+                                animationSpec = tween(300)
+                            )
+                        },
+                        exitTransition = {
+                            slideOutVertically(
+                                targetOffsetY = { it }, // Slide out to bottom
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popEnterTransition = {
+                             null
+                        },
+                        popExitTransition = {
+                             slideOutVertically(
+                                targetOffsetY = { it }, // Slide out to bottom
+                                animationSpec = tween(300)
+                            )
+                        }
+                    ) {
                         val authViewModel: AuthViewModel = viewModel(
                             factory = AuthViewModel.Factory(userRepository)
                         )
                         LoginScreen(
                             viewModel = authViewModel,
                             onLoginSuccess = {
-                                // 登录成功后，跳转到主页，并清除登录页面的堆栈
-                                navController.navigate("main") {
-                                    popUpTo("login") { inclusive = true }
-                                }
+                                // Login success, close login screen
+                                navController.popBackStack()
+                            },
+                            onClose = {
+                                navController.popBackStack()
                             },
                             onNavigateToRegister = {
                                 navController.navigate("register")
@@ -149,46 +180,8 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // 【新增 4】注册页面路由
-                    composable("register") {
-                        val authViewModel: AuthViewModel = viewModel(
-                            factory = AuthViewModel.Factory(userRepository)
-                        )
-                        RegisterScreen(
-                            viewModel = authViewModel,
-                            onRegisterSuccess = {
-                                // 注册成功（并自动登录）后，跳转到主页
-                                navController.navigate("main") {
-                                    popUpTo("login") { inclusive = true }
-                                }
-                            },
-                            onNavigateBack = {
-                                navController.popBackStack()
-                            }
-                        )
-                    }
-
-                    composable("main") {
-                        MainScreen(
-                            homeViewModel = homeViewModel,
-                            userRepository = userRepository,
-                            currentTheme = appTheme,
-                            onThemeChange = { newTheme ->
-                                lifecycleScope.launch {
-                                    settingsRepository.setThemeColor(newTheme.name)
-                                }
-                            },
-                            onAddMemoClick = { navController.navigate("add_memo") },
-                            onMemoClick = { navController.navigate("memo_detail") },
-                            onLogout = {
-                                navController.navigate("login") {
-                                    popUpTo("main") { inclusive = true }
-                                }
-                            }
-                        )
-                    }
-
                     composable(
-                        route = "memo_detail",
+                        route = "register",
                         enterTransition = {
                             slideInHorizontally(
                                 initialOffsetX = { it },
@@ -214,7 +207,75 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     ) {
+                        val authViewModel: AuthViewModel = viewModel(
+                            factory = AuthViewModel.Factory(userRepository)
+                        )
+                        RegisterScreen(
+                            viewModel = authViewModel,
+                            onRegisterSuccess = {
+                                // Register success (and auto login), close screens
+                                navController.popBackStack("main", inclusive = false)
+                            },
+                            onNavigateBack = {
+                                navController.popBackStack()
+                            }
+                        )
+                    }
+
+                    composable("main") {
+                        MainScreen(
+                            homeViewModel = homeViewModel,
+                            userRepository = userRepository,
+                            currentTheme = appTheme,
+                            onThemeChange = { newTheme ->
+                                lifecycleScope.launch {
+                                    settingsRepository.setThemeColor(newTheme.name)
+                                }
+                            },
+                            onAddMemoClick = { navController.navigate("add_memo") },
+                            onMemoClick = { memoId -> navController.navigate("memo_detail/$memoId") },
+                            onLoginClick = { navController.navigate("login") },
+                            onLogout = {
+                                // Logout is handled in ProfileScreen/ViewModel, we might want to refresh or do nothing
+                                // Since user state is observed, UI updates automatically.
+                            }
+                        )
+                    }
+
+                    composable(
+                        route = "memo_detail/{memoId}",
+                        arguments = listOf(navArgument("memoId") { type = NavType.StringType }),
+                        enterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        }
+                    ) { backStackEntry ->
+                        val memoId = backStackEntry.arguments?.getString("memoId") ?: return@composable
+                        val viewModel: MemoDetailViewModel = viewModel(
+                            factory = MemoDetailViewModel.Factory(database.memoDao(), imageStorageManager, memoId)
+                        )
                         MemoDetailScreen(
+                            viewModel = viewModel,
                             onBackClick = { navController.popBackStack() }
                         )
                     }
@@ -284,7 +345,7 @@ class MainActivity : ComponentActivity() {
                             createdAt = Date(),
                             title = "Shared Image",
                             recognizedText = "Shared from external app",
-                            tags = mutableListOf("Shared")
+                            tags = mutableListOf()
                         ).apply {
                             imageData = bytes
                         }
@@ -310,7 +371,8 @@ fun MainScreen(
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
     onAddMemoClick: () -> Unit = {}, // Pass navigation callback
-    onMemoClick: () -> Unit = {},
+    onMemoClick: (String) -> Unit = {},
+    onLoginClick: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
@@ -359,7 +421,8 @@ fun MainScreen(
                     )
                     ProfileScreen(
                         viewModel = profileViewModel,
-                        onLogout = onLogout
+                        onLogout = onLogout,
+                        onLoginClick = onLoginClick
                     )
                 }
                 else -> ContentScreen(

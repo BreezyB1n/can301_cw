@@ -25,16 +25,119 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.can301_cw.model.*
 import com.example.can301_cw.data.mockMemoDetailData
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.BitmapFactory
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+@Composable
+fun MemoDetailScreen(
+    viewModel: MemoDetailViewModel,
+    onBackClick: () -> Unit = {}
+) {
+    val memoItem by viewModel.memoItem.collectAsState()
+
+    if (memoItem == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        val item = memoItem!!
+        val data = item.apiResponse ?: createFallbackApiResponse(item)
+        val isAiProcessing = item.imageData != null && !item.hasAPIResponse
+        MemoDetailContent(
+            onBackClick = onBackClick,
+            data = data,
+            createdAt = item.createdAt,
+            source = item.source.ifEmpty { "Manual" },
+            isAICompleted = item.hasAPIResponse,
+            imageData = item.imageData,
+            isAiProcessing = isAiProcessing,
+            originalTitle = item.title,
+            tags = item.tags
+        )
+    }
+}
+
+fun createFallbackApiResponse(item: MemoItem): ApiResponse {
+    return ApiResponse(
+        mostPossibleCategory = "General",
+        information = Information(
+            title = item.title.ifEmpty { "Untitled Memo" },
+            informationItems = listOf(
+                InformationItem(
+                    id = 0,
+                    header = "Content",
+                    content = item.recognizedText.ifEmpty { item.userInputText },
+                    node = null
+                )
+            ),
+            relatedItems = emptyList(),
+            summary = item.recognizedText.ifEmpty { item.userInputText }.ifEmpty { "No content available." },
+            tags = item.tags
+        ),
+        schedule = Schedule(
+            title = item.title,
+            category = "General",
+            tasks = emptyList()
+        )
+    )
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MemoDetailScreen(
+fun MemoDetailContent(
     onBackClick: () -> Unit = {},
-    data: ApiResponse = mockMemoDetailData
+    data: ApiResponse,
+    createdAt: java.util.Date = java.util.Date(),
+    source: String = "Manual",
+    isAICompleted: Boolean = false,
+    imageData: ByteArray? = null,
+    isAiProcessing: Boolean = false,
+    originalTitle: String = "",
+    tags: List<String> = emptyList()
 ) {
     val scrollState = rememberScrollState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Info", "Schedule")
+    var showFullScreenImage by remember { mutableStateOf(false) }
+
+    if (showFullScreenImage && imageData != null && imageData.isNotEmpty()) {
+        Dialog(
+            onDismissRequest = { showFullScreenImage = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { showFullScreenImage = false },
+                contentAlignment = Alignment.Center
+            ) {
+                 val bitmap = remember(imageData) {
+                    BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+                }
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Full screen image",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -45,11 +148,6 @@ fun MemoDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                // actions = {
-                //     IconButton(onClick = { /* Edit action */ }) {
-                //         Icon(Icons.Outlined.Edit, contentDescription = "Edit")
-                //     }
-                // }
             )
         },
     ) { paddingValues ->
@@ -61,11 +159,38 @@ fun MemoDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Image Section
+            if (imageData != null && imageData.isNotEmpty()) {
+                 val bitmap = remember(imageData) {
+                    BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+                }
+                if (bitmap != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black.copy(alpha = 0.05f))
+                            .clickable { showFullScreenImage = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+
             // Header Section
-            HeaderSection(data)
+            HeaderSection(data, createdAt, source, isAICompleted, isAiProcessing, originalTitle, tags)
 
             // AI Summary Section
             AISummarySection(data)
+            
+            // ... (rest of the content)
 
             // Tabs
             TabRow(
@@ -102,59 +227,79 @@ fun MemoDetailScreen(
         }
     }
 }
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun HeaderSection(data: ApiResponse) {
+fun HeaderSection(
+    data: ApiResponse,
+    createdAt: java.util.Date,
+    source: String,
+    isAICompleted: Boolean,
+    isAiProcessing: Boolean,
+    originalTitle: String,
+    tags: List<String>
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Placeholder for Image if needed
-        val title = data.schedule.title.takeIf { it.isNotEmpty() } ?: data.information.title
+        // Title Logic similar to HomeScreen
+        val titleText = if (isAiProcessing) "Loading..." else originalTitle.ifEmpty { data.schedule.title.takeIf { it.isNotEmpty() } ?: data.information.title }
         
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+        if (titleText.isNotEmpty()) {
+            Text(
+                text = titleText,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isAiProcessing) Color.Gray else Color.Black
+            )
+        }
 
         // Metadata Rows
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Outlined.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-            Text("Created: 2025-12-01", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text("Created: ${dateFormat.format(createdAt)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-            Text("Source: Manually", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text("Source: $source", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF4CAF50)) // Green
-            Text("AI Analysis: Completed", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
+            if (isAICompleted) {
+                Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF4CAF50)) // Green
+                Text("AI Analysis: Completed", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
+            } else {
+                Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray) 
+                Text("AI Analysis: Pending/None", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
         }
 
         // Tags
-        val tags = (data.schedule.tasks.firstOrNull()?.tags ?: data.information.tags)
         if (tags.isNotEmpty()) {
-            Row(
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .padding(top = 8.dp)
-                    .horizontalScroll(rememberScrollState())
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 tags.forEach { tag ->
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(24.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = tag,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            )
-                        }
-                    }
+                    TagChip(tag)
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun TagChip(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.height(24.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
         }
     }
 }
@@ -215,8 +360,15 @@ fun InformationTabContent(info: Information) {
 
 @Composable
 fun ScheduleTabContent(schedule: Schedule) {
-    val task = schedule.tasks.firstOrNull() ?: return
-    ScheduleTaskCard(task)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (schedule.tasks.isEmpty()) {
+            Text("No scheduled tasks.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        } else {
+            schedule.tasks.forEach { task ->
+                ScheduleTaskCard(task)
+            }
+        }
+    }
 }
 
 @Composable
@@ -382,6 +534,8 @@ fun ScheduleTaskCard(task: ScheduleTask) {
 @Composable
 fun MemoDetailScreenPreview() {
     MaterialTheme {
-        MemoDetailScreen()
+        MemoDetailContent(
+            data = mockMemoDetailData
+        )
     }
 }

@@ -68,7 +68,7 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit,
-    onMemoClick: () -> Unit
+    onMemoClick: (String) -> Unit
 ) {
     val memoItems by viewModel.memoItems.collectAsState()
     HomeScreenContent(
@@ -85,7 +85,7 @@ fun HomeScreenContent(
     memoItems: List<MemoItem>,
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit = {},
-    onMemoClick: () -> Unit = {}
+    onMemoClick: (String) -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
@@ -207,7 +207,7 @@ fun SearchBarSection() {
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .height(48.dp),
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFE6E9EF) // Light gray for search bar
+        color = Color(0xFFE6E9EF)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -281,7 +281,7 @@ fun DateHeader(date: String) {
 }
 
 @Composable
-fun MemoCard(item: MemoItem, onClick: () -> Unit = {}) {
+fun MemoCard(item: MemoItem, onClick: (String) -> Unit = {}) {
     val hasImage = item.imageData != null && item.imageData!!.isNotEmpty()
     val imageAspectRatio = remember(item.imageData) {
         if (hasImage) {
@@ -305,7 +305,7 @@ fun MemoCard(item: MemoItem, onClick: () -> Unit = {}) {
     val isPortrait = imageAspectRatio < 1f
 
     Card(
-        onClick = onClick,
+        onClick = { onClick(item.id) },
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -409,19 +409,29 @@ fun MemoImage(imageData: ByteArray?, modifier: Modifier = Modifier) {
 
 @Composable
 fun MemoTextContent(item: MemoItem) {
+    // Determine if we are waiting for AI response
+    // We assume if there is an image and no API response yet, it's processing
+    val isAiProcessing = item.imageData != null && !item.hasAPIResponse
+
     Column {
         // Title
-        if (item.title.isNotEmpty()) {
+        val titleText = if (isAiProcessing) "Loading..." else item.title
+        
+        if (titleText.isNotEmpty()) {
             Text(
-                text = item.title,
+                text = titleText,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                color = Color.Black
+                color = if (isAiProcessing) Color.Gray else Color.Black
             )
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Description (Recognized Text)
-        val description = if (item.recognizedText.isNotEmpty()) item.recognizedText else item.userInputText
+        val description = if (isAiProcessing) {
+            "Analyzing image content..."
+        } else {
+            if (item.recognizedText.isNotEmpty()) item.recognizedText else item.userInputText
+        }
+
         if (description.isNotEmpty()) {
             Text(
                 text = description,
