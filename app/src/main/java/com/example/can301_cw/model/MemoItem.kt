@@ -42,6 +42,18 @@ data class MemoItem(
 
         if (id != other.id) return false
         if (imagePath != other.imagePath) return false
+        if (recognizedText != other.recognizedText) return false
+        if (userInputText != other.userInputText) return false
+        if (title != other.title) return false
+        if (tags != other.tags) return false
+        if (createdAt != other.createdAt) return false
+        if (scheduledDate != other.scheduledDate) return false
+        if (source != other.source) return false
+        if (apiResponse != other.apiResponse) return false
+        if (isAPIProcessing != other.isAPIProcessing) return false
+        if (apiProcessedAt != other.apiProcessedAt) return false
+        if (hasAPIResponse != other.hasAPIResponse) return false
+        
         if (imageData != null) {
             if (other.imageData == null) return false
             if (!imageData.contentEquals(other.imageData)) return false
@@ -53,6 +65,17 @@ data class MemoItem(
     override fun hashCode(): Int {
         var result = id.hashCode()
         result = 31 * result + (imagePath?.hashCode() ?: 0)
+        result = 31 * result + recognizedText.hashCode()
+        result = 31 * result + userInputText.hashCode()
+        result = 31 * result + title.hashCode()
+        result = 31 * result + tags.hashCode()
+        result = 31 * result + createdAt.hashCode()
+        result = 31 * result + (scheduledDate?.hashCode() ?: 0)
+        result = 31 * result + source.hashCode()
+        result = 31 * result + (apiResponse?.hashCode() ?: 0)
+        result = 31 * result + isAPIProcessing.hashCode()
+        result = 31 * result + (apiProcessedAt?.hashCode() ?: 0)
+        result = 31 * result + hasAPIResponse.hashCode()
         result = 31 * result + (imageData?.contentHashCode() ?: 0)
         return result
     }

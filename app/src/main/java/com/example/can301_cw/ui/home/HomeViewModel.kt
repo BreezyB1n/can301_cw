@@ -9,6 +9,7 @@ import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.network.ArkChatClient
 import com.example.can301_cw.model.ApiResponse
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,52 +41,6 @@ class HomeViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
-
-    init {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (memoDao.getMemoCount() == 0) {
-                // Initialize with sample data
-                val sampleItems = listOf(
-                    MemoItem(
-                        id = "2",
-                        title = "Chino的用户页面",
-                        recognizedText = "这是Chino的用户页面，展示了其个人信息、好友编号SW-3802-1832-7999、以及最近的游戏记录，包括《双人成行》、《塞尔达传说 旷野之息》和《LEGO® Worlds》。页面还提供了好友列表、添加好友、邀请和用户设置等功能选项。",
-                        tags = mutableListOf("用户资料", "游戏记录", "游戏", "Nintendo Switch", "娱乐"),
-                        createdAt = Date(), // Mock date
-                    ).apply {
-                        // Create a mock image
-                        imageData = ByteArray(1)
-                    },
-                    MemoItem(
-                        id = "1",
-                        title = "购物小票",
-                        recognizedText = "超市购物清单：牛奶、面包、鸡蛋、苹果。总计：¥45.50。",
-                        tags = mutableListOf("购物", "账单"),
-                        createdAt = Date(), // Mock date
-                    ).apply {
-                         imageData = ByteArray(1)
-                    },
-                    MemoItem(
-                        id = "3",
-                        title = "硕士申请项目确定会议",
-                        recognizedText = "关于硕士申请项目的初步讨论，确定了主要方向和时间表。",
-                        tags = mutableListOf("申请", "会议", "计划"),
-                        createdAt = Date(), // Mock date
-                        imagePath = null
-                    )
-                )
-                
-                sampleItems.forEach { item ->
-                    // Save mock images to storage
-                    item.imageData?.let { bytes ->
-                        val path = imageStorageManager.saveImage(bytes)
-                        item.imagePath = path
-                    }
-                    memoDao.insertMemo(item)
-                }
-            }
-        }
-    }
 
     fun addMemoItem(item: MemoItem) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -124,21 +79,32 @@ class HomeViewModel(
                     println("AI Analysis Result: $jsonString")
 
                     val gson = Gson()
-                    val apiResponse = gson.fromJson(jsonString, ApiResponse::class.java)
+                    
+                    // Parse the outer layer (OpenAI format)
+                    val rootObj = JsonParser.parseString(jsonString).asJsonObject
+                    val choices = rootObj.getAsJsonArray("choices")
+                    
+                    if (choices.size() > 0) {
+                        val contentJsonStr = choices[0].asJsonObject
+                            .getAsJsonObject("message")
+                            .get("content").asString
+                            
+                        val apiResponse = gson.fromJson(contentJsonStr, ApiResponse::class.java)
 
-                    // 5. Update MemoItem
-                    val updatedItem = item.copy(
-                        title = apiResponse.information.title,
-                        recognizedText = apiResponse.information.summary,
-                        tags = (item.tags + apiResponse.allTags).distinct().toMutableList(),
-                        apiResponse = apiResponse,
-                        hasAPIResponse = true,
-                        apiProcessedAt = Date()
-                    )
+                        // 5. Update MemoItem
+                        val updatedItem = item.copy(
+                            title = apiResponse.information.title,
+                            recognizedText = apiResponse.information.summary,
+                            tags = (item.tags + apiResponse.allTags).distinct().toMutableList(),
+                            apiResponse = apiResponse,
+                            hasAPIResponse = true,
+                            apiProcessedAt = Date()
+                        )
 
-                    // 6. Update DB
-                    // Use insertMemo (REPLACE strategy) to update
-                    memoDao.insertMemo(updatedItem)
+                        // 6. Update DB
+                        // Use insertMemo (REPLACE strategy) to update
+                        memoDao.insertMemo(updatedItem)
+                    }
                 }.onFailure { e ->
                     e.printStackTrace()
                 }

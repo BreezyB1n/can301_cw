@@ -27,7 +27,6 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.example.can301_cw.data.AppDatabase
-import com.example.can301_cw.data.FakeMemoDao
 import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
@@ -59,6 +58,9 @@ import com.example.can301_cw.ui.auth.AuthViewModel
 import com.example.can301_cw.ui.auth.LoginScreen
 import com.example.can301_cw.ui.auth.RegisterScreen
 import com.example.can301_cw.ui.profile.ProfileViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.example.can301_cw.ui.detail.MemoDetailViewModel
 
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
@@ -178,7 +180,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onAddMemoClick = { navController.navigate("add_memo") },
-                            onMemoClick = { navController.navigate("memo_detail") },
+                            onMemoClick = { memoId -> navController.navigate("memo_detail/$memoId") },
                             onLogout = {
                                 navController.navigate("login") {
                                     popUpTo("main") { inclusive = true }
@@ -188,7 +190,8 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable(
-                        route = "memo_detail",
+                        route = "memo_detail/{memoId}",
+                        arguments = listOf(navArgument("memoId") { type = NavType.StringType }),
                         enterTransition = {
                             slideInHorizontally(
                                 initialOffsetX = { it },
@@ -213,8 +216,13 @@ class MainActivity : ComponentActivity() {
                                 animationSpec = tween(300)
                             )
                         }
-                    ) {
+                    ) { backStackEntry ->
+                        val memoId = backStackEntry.arguments?.getString("memoId") ?: return@composable
+                        val viewModel: MemoDetailViewModel = viewModel(
+                            factory = MemoDetailViewModel.Factory(database.memoDao(), imageStorageManager, memoId)
+                        )
                         MemoDetailScreen(
+                            viewModel = viewModel,
                             onBackClick = { navController.popBackStack() }
                         )
                     }
@@ -310,7 +318,7 @@ fun MainScreen(
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
     onAddMemoClick: () -> Unit = {}, // Pass navigation callback
-    onMemoClick: () -> Unit = {},
+    onMemoClick: (String) -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     var selectedItem by rememberSaveable { mutableIntStateOf(0) }
