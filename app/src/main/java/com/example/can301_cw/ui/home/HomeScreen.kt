@@ -271,7 +271,6 @@ fun DateHeader(date: String) {
         Text(
             text = date,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color.Black
         )
         Spacer(modifier = Modifier.width(8.dp))
         HorizontalDivider(

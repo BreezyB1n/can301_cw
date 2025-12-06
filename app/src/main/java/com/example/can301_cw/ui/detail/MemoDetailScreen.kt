@@ -247,7 +247,7 @@ fun HeaderSection(
                 text = titleText,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (isAiProcessing) Color.Gray else Color.Black
+                color = if (isAiProcessing) Color.Gray else Color.Unspecified
             )
         }
 
