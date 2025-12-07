@@ -21,6 +21,9 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.*
@@ -199,95 +202,100 @@ fun ScheduleCard(
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                Column(modifier = Modifier.padding(top = 16.dp, start = 40.dp)) { // Indent to align with text
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     
                     if (task.coreTasks.isNotEmpty()) {
                         Text(
                             text = "Core Tasks:",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        task.coreTasks.forEach { item ->
-                            Row(modifier = Modifier.padding(vertical = 2.dp)) {
-                                Icon(
-                                    imageVector = Icons.Outlined.CheckCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp).padding(top = 2.dp),
-                                    tint = MaterialTheme.colorScheme.secondary
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = item,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                        
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            task.coreTasks.forEach { item ->
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.CheckCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp).padding(top = 2.dp),
+                                        tint = Color(0xFF4CAF50)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = item,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     if (task.suggestedActions.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Suggested Actions:",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFFECA646), // Yellow/Orange ish
-                             fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        task.suggestedActions.forEach { item ->
-                            Row(modifier = Modifier.padding(vertical = 2.dp)) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Circle, // Using Circle as bullet point
-                                    contentDescription = null,
-                                    modifier = Modifier.size(10.dp).padding(top = 6.dp),
-                                    tint = Color(0xFFECA646)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = item,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                     color = MaterialTheme.colorScheme.onSurface
-                                )
+                        
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            task.suggestedActions.forEach { item ->
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Lightbulb,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp).padding(top = 2.dp),
+                                        tint = Color(0xFFFFC107)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = item,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                         color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
-                        Spacer(modifier = Modifier.height(24.dp))
                     }
 
                     // Action Buttons
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Button(
                             onClick = { /* TODO: Implement Reminder Logic */ },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFFC107), // Yellowish
-                                contentColor = Color.Black
-                            ),
-                            shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
-                            modifier = Modifier.height(40.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            shape = RoundedCornerShape(15.dp),
+                            modifier = Modifier.height(30.dp)
                         ) {
-                            Icon(Icons.Filled.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Set Reminder", style = MaterialTheme.typography.labelLarge)
+                            Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Set Reminder", style = MaterialTheme.typography.labelMedium)
                         }
 
                         Button(
                             onClick = { onSetStatus(TaskStatus.IGNORED) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            ),
-                            shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
-                             modifier = Modifier.height(40.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            shape = RoundedCornerShape(15.dp),
+                            modifier = Modifier.height(30.dp)
                         ) {
-                            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Ignore", style = MaterialTheme.typography.labelLarge)
+                            Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
                         }
                     }
                 }
@@ -301,30 +309,23 @@ fun CircularCheckbox(
     checked: Boolean,
     onCheckedChange: () -> Unit
 ) {
-    // Blue circle when unchecked (outline), Filled blue when checked
-    val primaryColor = Color(0xFF2196F3) // Material Blue or use Theme primary
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val animatedSize by animateFloatAsState(targetValue = if (checked) 16f else 0f, label = "checkboxSize")
     
     Box(
         modifier = Modifier
             .size(24.dp)
             .clip(CircleShape)
             .border(2.dp, primaryColor, CircleShape)
-            .background(if (checked) primaryColor else Color.Transparent)
             .clickable { onCheckedChange() },
         contentAlignment = Alignment.Center
     ) {
-        AnimatedVisibility(
-            visible = checked,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
-            )
-        }
+        Box(
+            modifier = Modifier
+                .size(animatedSize.dp)
+                .clip(CircleShape)
+                .background(primaryColor)
+        )
     }
 }
 
