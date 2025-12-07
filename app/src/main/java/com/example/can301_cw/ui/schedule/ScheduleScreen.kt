@@ -140,7 +140,8 @@ fun ScheduleCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val task = taskWrapper.task
-    val isCompleted = task.taskStatus == TaskStatus.COMPLETED
+    // Use local state for immediate feedback, synced with prop
+    var isCompleted by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.COMPLETED) }
     val isIgnored = task.taskStatus == TaskStatus.IGNORED
 
     if (isIgnored) return // Don't render ignored tasks? Or render them differently? Requirement said "Ignore" button exists, implying they start not ignored.
@@ -163,7 +164,10 @@ fun ScheduleCard(
                 // Custom Circle Checkbox
                 CircularCheckbox(
                     checked = isCompleted,
-                    onCheckedChange = { onToggleStatus() }
+                    onCheckedChange = { 
+                        isCompleted = !isCompleted
+                        onToggleStatus() 
+                    }
                 )
 
                 Spacer(modifier = Modifier.width(16.dp))
