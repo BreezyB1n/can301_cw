@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,6 +63,7 @@ import com.example.can301_cw.ui.theme.CAN301_CWTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.max
 
 @Composable
 fun HomeScreen(
@@ -90,7 +92,7 @@ fun HomeScreenContent(
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     val memoGroups = memoItems.groupBy {
-        SimpleDateFormat("MM月dd日", Locale.getDefault()).format(it.createdAt)
+        SimpleDateFormat("MMMM dd", Locale.ENGLISH).format(it.createdAt)
     }
 
     Scaffold(
@@ -220,7 +222,7 @@ fun SearchBarSection() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "搜索 Memo...",
+                text = "Search Memo...",
                 color = Color.Gray,
                 style = MaterialTheme.typography.bodyLarge
             )
@@ -246,7 +248,7 @@ fun StatusCardSection() {
             Icon(
                 imageVector = Icons.Filled.Check,
                 contentDescription = null,
-                tint = Color(0xFF2E7D32) // Dark green
+                tint = Color(0xFF2E7D32)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -269,7 +271,6 @@ fun DateHeader(date: String) {
         Text(
             text = date,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = Color.Black
         )
         Spacer(modifier = Modifier.width(8.dp))
         HorizontalDivider(
@@ -319,6 +320,27 @@ fun MemoCard(item: MemoItem, onClick: (String) -> Unit = {}) {
             if (hasImage) {
                 if (isPortrait) {
                     // Horizontal Layout (Image Left, Content Right)
+                    
+                    // Calculate estimated max lines based on image height
+                    // Image width is 120.dp, aspect ratio is constrained between 0.5 and 1.0
+                    val displayedRatio = imageAspectRatio.coerceIn(0.5f, 1.0f)
+                    // Image height in dp = 120 / ratio
+                    val estimatedImageHeight = 120f / displayedRatio
+
+                    // Estimate Title Height
+                    // Title width is roughly (Screen - 120 - 32 - 16). Assuming 360dp screen -> 192dp available.
+                    // titleMedium bold ~ 9-10dp per char?
+                    // Let's assume 18 chars per line conservatively.
+                    val estimatedTitleLines = (item.title.length / 18) + 1
+                    // Title line height ~ 24dp (22sp + padding), plus 8dp spacing below title
+                    val estimatedTitleHeight = estimatedTitleLines * 24 + 8
+
+                    // Estimate Body Lines
+                    // (ImageHeight - TitleHeight) / BodyLineHeight
+                    // Body line height ~ 22dp (20sp + spacing)
+                    val availableHeight = estimatedImageHeight - estimatedTitleHeight
+                    val calculatedMaxLines = max(3, (availableHeight / 22).toInt())
+                    
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.Top
@@ -334,7 +356,7 @@ fun MemoCard(item: MemoItem, onClick: (String) -> Unit = {}) {
                         
                         // Content
                         Column(modifier = Modifier.weight(1f)) {
-                            MemoTextContent(item)
+                            MemoTextContent(item, maxLines = calculatedMaxLines)
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -408,7 +430,7 @@ fun MemoImage(imageData: ByteArray?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun MemoTextContent(item: MemoItem) {
+fun MemoTextContent(item: MemoItem, maxLines: Int = 4) {
     // Determine if we are waiting for AI response
     // We assume if there is an image and no API response yet, it's processing
     val isAiProcessing = item.imageData != null && !item.hasAPIResponse
@@ -420,7 +442,10 @@ fun MemoTextContent(item: MemoItem) {
         if (titleText.isNotEmpty()) {
             Text(
                 text = titleText,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 22.sp
+                ),
                 color = if (isAiProcessing) Color.Gray else Color.Black
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -437,7 +462,7 @@ fun MemoTextContent(item: MemoItem) {
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.DarkGray,
-                maxLines = 4,
+                maxLines = maxLines,
                 overflow = TextOverflow.Ellipsis
             )
         }

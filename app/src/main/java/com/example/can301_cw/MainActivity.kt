@@ -31,6 +31,7 @@ import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.category.CategoryScreen
+import com.example.can301_cw.ui.category.TagDetailScreen
 import com.example.can301_cw.ui.home.HomeScreen
 import com.example.can301_cw.ui.home.HomeViewModel
 import com.example.can301_cw.ui.profile.DarkModeConfig
@@ -47,6 +48,8 @@ import com.example.can301_cw.ui.detail.MemoDetailScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.app.Application
 import androidx.compose.ui.platform.LocalContext
+import com.example.can301_cw.notification.NotificationHelper
+import com.example.can301_cw.notification.ReminderScheduler
 
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -62,19 +65,25 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.can301_cw.ui.detail.MemoDetailViewModel
 
+import com.example.can301_cw.ui.schedule.ScheduleScreen
+import com.example.can301_cw.ui.schedule.ScheduleViewModel
+
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
+    private val reminderScheduler by lazy { ReminderScheduler(this) }
     private val homeViewModel by viewModels<HomeViewModel> {
         HomeViewModel.Factory(database.memoDao(), imageStorageManager)
     }
     private val settingsRepository by lazy { SettingsRepository(database.settingsDao()) }
 
-    // 【新增 1】初始化 UserRepository
     private val userRepository by lazy { UserRepository(database.userDao(), database.settingsDao()) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 创建通知渠道
+        NotificationHelper.createNotificationChannel(this)
 
         // Restore user session
         lifecycleScope.launch {
@@ -133,10 +142,8 @@ class MainActivity : ComponentActivity() {
             CAN301_CWTheme(appTheme = appTheme, customPrimaryColor = customColor, darkTheme = darkTheme) {
                 val navController = rememberNavController()
 
-                // 【修改 2】将 startDestination 从 "main" 改为 "login"
                 NavHost(navController = navController, startDestination = "main") {
 
-                    // 【新增 3】登录页面路由
                     composable(
                         route = "login",
                         enterTransition = {
@@ -226,6 +233,8 @@ class MainActivity : ComponentActivity() {
                         MainScreen(
                             homeViewModel = homeViewModel,
                             userRepository = userRepository,
+                            database = database,
+                            navController = navController,
                             currentTheme = appTheme,
                             onThemeChange = { newTheme ->
                                 lifecycleScope.launch {
@@ -281,6 +290,45 @@ class MainActivity : ComponentActivity() {
                     }
 
                     composable(
+                        route = "tag_detail/{tag}",
+                        arguments = listOf(navArgument("tag") { type = NavType.StringType }),
+                        enterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        }
+                    ) { backStackEntry ->
+                        val tagEncoded = backStackEntry.arguments?.getString("tag") ?: return@composable
+                        val tag = java.net.URLDecoder.decode(tagEncoded, "UTF-8")
+                        TagDetailScreen(
+                            tag = tag,
+                            memoDao = database.memoDao(),
+                            imageStorageManager = imageStorageManager,
+                            onBackClick = { navController.popBackStack() },
+                            onMemoClick = { memoId -> navController.navigate("memo_detail/$memoId") }
+                        )
+                    }
+
+                    composable(
                         route = "add_memo",
                         enterTransition = {
                             slideInVertically(
@@ -312,7 +360,8 @@ class MainActivity : ComponentActivity() {
                             factory = AddMemoViewModel.Factory(
                                 application,
                                 database.memoDao(),
-                                imageStorageManager
+                                imageStorageManager,
+                                reminderScheduler
                             )
                         )
 
@@ -368,6 +417,8 @@ data class BottomNavItem(
 fun MainScreen(
     homeViewModel: HomeViewModel,
     userRepository: UserRepository,
+    database: AppDatabase,
+    navController: androidx.navigation.NavController,
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
     onAddMemoClick: () -> Unit = {}, // Pass navigation callback
@@ -401,14 +452,44 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        Box(modifier = if (selectedItem == 0 || selectedItem == 2 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
+        Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
             when (selectedItem) {
                 0 -> HomeScreen(
                     viewModel = homeViewModel,
                     onAddMemoClick = onAddMemoClick, // Pass it down
                     onMemoClick = onMemoClick
                 )
-                2 -> CategoryScreen()
+                1 -> {
+                    val context = LocalContext.current
+                    val application = context.applicationContext as Application
+
+                    // We can reuse the database.memoDao() since it is the same instance
+                    // But accessing database here requires passing it down or grabbing it via Context
+                    // (Since MainScreen is a Composable, we can't access MainActivity properties directly unless passed)
+                    // However, MainActivity properties like `database` are inside the Activity class.
+                    // Let's check if we can access it. The `MainScreen` call is inside `setContent` block which is inside `onCreate`, so it has access to `database`.
+                    // But `MainScreen` function itself is outside `MainActivity` class.
+                    // We should pass the DAO or ViewModel to MainScreen.
+
+                    // Since we didn't pass scheduleViewModel to MainScreen, we need to create it here.
+                    // But MainScreen doesn't have access to `database` property of MainActivity.
+                    // We need to use Factory pattern properly inside the Composable.
+
+                    val scheduleViewModel: ScheduleViewModel = viewModel(
+                        factory = ScheduleViewModel.Factory(
+                            // We need a way to get Dao.
+                            // Option 1: Pass Dao to MainScreen
+                            // Option 2: Get DB from Context (AppDatabase.getDatabase(context))
+                            AppDatabase.getDatabase(context).memoDao()
+                        )
+                    )
+
+                    ScheduleScreen(viewModel = scheduleViewModel)
+                }
+                2 -> CategoryScreen(
+                    memoDao = database.memoDao(),
+                    onTagClick = { tag -> navController.navigate("tag_detail/${java.net.URLEncoder.encode(tag, "UTF-8")}") }
+                )
                 3 -> {
                     val context = LocalContext.current
                     val application = context.applicationContext as Application

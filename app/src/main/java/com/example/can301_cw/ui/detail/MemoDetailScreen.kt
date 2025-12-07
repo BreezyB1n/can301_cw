@@ -29,12 +29,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.asImageBitmap
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -193,6 +200,17 @@ fun MemoDetailContent(
             // ... (rest of the content)
 
             // Tabs
+            val pagerState = rememberPagerState(pageCount = { tabs.size })
+            val coroutineScope = rememberCoroutineScope()
+
+            LaunchedEffect(selectedTabIndex) {
+                pagerState.animateScrollToPage(selectedTabIndex)
+            }
+            
+            LaunchedEffect(pagerState.currentPage) {
+                selectedTabIndex = pagerState.currentPage
+            }
+
             TabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = Color.Transparent,
@@ -208,21 +226,26 @@ fun MemoDetailContent(
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = selectedTabIndex == index,
-                        onClick = { selectedTabIndex = index },
+                        onClick = { 
+                            selectedTabIndex = index 
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
                         text = { Text(title) }
                     )
                 }
             }
 
-            // Tab Content
-            when (selectedTabIndex) {
-                0 -> InformationTabContent(data.information)
-                1 -> ScheduleTabContent(data.schedule)
-            }
-            
-            // Spacer for bottom bar
-            if (selectedTabIndex == 1) {
-                Spacer(modifier = Modifier.height(80.dp))
+            // Tab Content with HorizontalPager
+            HorizontalPager(
+                state = pagerState,
+                verticalAlignment = Alignment.Top
+            ) { page ->
+                when (page) {
+                    0 -> InformationTabContent(data.information)
+                    1 -> ScheduleTabContent(data.schedule)
+                }
             }
         }
     }
@@ -247,7 +270,7 @@ fun HeaderSection(
                 text = titleText,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (isAiProcessing) Color.Gray else Color.Black
+                color = if (isAiProcessing) Color.Gray else Color.Unspecified
             )
         }
 
@@ -359,6 +382,31 @@ fun InformationTabContent(info: Information) {
 }
 
 @Composable
+fun CircularCheckbox(
+    checked: Boolean,
+    onCheckedChange: () -> Unit
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val animatedSize by androidx.compose.animation.core.animateFloatAsState(targetValue = if (checked) 16f else 0f, label = "checkboxSize")
+    
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .border(2.dp, primaryColor, CircleShape)
+            .clickable { onCheckedChange() },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(animatedSize.dp)
+                .clip(CircleShape)
+                .background(primaryColor)
+        )
+    }
+}
+
+@Composable
 fun ScheduleTabContent(schedule: Schedule) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (schedule.tasks.isEmpty()) {
@@ -373,6 +421,8 @@ fun ScheduleTabContent(schedule: Schedule) {
 
 @Composable
 fun ScheduleTaskCard(task: ScheduleTask) {
+    var isCompleted by remember { mutableStateOf(false) }
+
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -386,22 +436,34 @@ fun ScheduleTaskCard(task: ScheduleTask) {
             // Header: Title and Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = task.theme.ifEmpty { "Task" },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                // Circular Checkbox
+                CircularCheckbox(
+                    checked = isCompleted,
+                    onCheckedChange = { isCompleted = !isCompleted }
                 )
-            }
-            // Time
-            if (task.startTime.isNotEmpty()) {
-                Text(
-                    text = task.startTime,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = task.theme.ifEmpty { "Task" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                        color = if (isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    // Time
+                    if (task.startTime.isNotEmpty()) {
+                        Text(
+                            text = task.startTime,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             Box(
@@ -417,10 +479,12 @@ fun ScheduleTaskCard(task: ScheduleTask) {
                     text = "Core Tasks:",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
                 )
                 
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     task.coreTasks.forEach { coreTask ->
                         Row(verticalAlignment = Alignment.Top) {
                             Icon(
@@ -446,9 +510,11 @@ fun ScheduleTaskCard(task: ScheduleTask) {
                     text = "Suggested Actions:",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.primary,
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     task.suggestedActions.forEach { action ->
                         Row(verticalAlignment = Alignment.Top) {
                             Icon(
@@ -467,33 +533,6 @@ fun ScheduleTaskCard(task: ScheduleTask) {
                 }
             }
             
-            //// Tags
-            //  if (task.tags.isNotEmpty()) {
-            //     Spacer(modifier = Modifier.height(2.dp))
-            //     Row(
-            //         horizontalArrangement = Arrangement.spacedBy(6.dp),
-            //         modifier = Modifier.horizontalScroll(rememberScrollState())
-            //     ) {
-            //         task.tags.forEach { tag ->
-            //             SuggestionChip(
-            //                 onClick = { },
-            //                 label = { 
-            //                     Text(
-            //                         tag, 
-            //                         style = MaterialTheme.typography.labelMedium
-            //                     ) 
-            //                 },
-            //                 colors = SuggestionChipDefaults.suggestionChipColors(
-            //                     containerColor = MaterialTheme.colorScheme.surfaceVariant
-            //                 ),
-            //                 border = null,
-            //                 modifier = Modifier.height(30.dp),
-            //                 shape = RoundedCornerShape(8.dp)
-            //             )
-            //         }
-            //     }
-            // }
-
             // Footer Actions
             Spacer(modifier = Modifier.height(4.dp))
             Row(
