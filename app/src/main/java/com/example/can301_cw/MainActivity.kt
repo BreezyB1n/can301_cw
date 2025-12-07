@@ -62,6 +62,9 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.can301_cw.ui.detail.MemoDetailViewModel
 
+import com.example.can301_cw.ui.schedule.ScheduleScreen
+import com.example.can301_cw.ui.schedule.ScheduleViewModel
+
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
@@ -408,6 +411,33 @@ fun MainScreen(
                     onAddMemoClick = onAddMemoClick, // Pass it down
                     onMemoClick = onMemoClick
                 )
+                1 -> {
+                    val context = LocalContext.current
+                    val application = context.applicationContext as Application
+                    
+                    // We can reuse the database.memoDao() since it is the same instance
+                    // But accessing database here requires passing it down or grabbing it via Context 
+                    // (Since MainScreen is a Composable, we can't access MainActivity properties directly unless passed)
+                    // However, MainActivity properties like `database` are inside the Activity class. 
+                    // Let's check if we can access it. The `MainScreen` call is inside `setContent` block which is inside `onCreate`, so it has access to `database`.
+                    // But `MainScreen` function itself is outside `MainActivity` class.
+                    // We should pass the DAO or ViewModel to MainScreen.
+                    
+                    // Since we didn't pass scheduleViewModel to MainScreen, we need to create it here.
+                    // But MainScreen doesn't have access to `database` property of MainActivity.
+                    // We need to use Factory pattern properly inside the Composable.
+                    
+                    val scheduleViewModel: ScheduleViewModel = viewModel(
+                        factory = ScheduleViewModel.Factory(
+                            // We need a way to get Dao.
+                            // Option 1: Pass Dao to MainScreen
+                            // Option 2: Get DB from Context (AppDatabase.getDatabase(context))
+                            AppDatabase.getDatabase(context).memoDao()
+                        )
+                    )
+                    
+                    ScheduleScreen(viewModel = scheduleViewModel)
+                }
                 2 -> CategoryScreen()
                 3 -> {
                     val context = LocalContext.current
