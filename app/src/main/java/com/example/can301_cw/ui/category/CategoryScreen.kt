@@ -1,5 +1,6 @@
 package com.example.can301_cw.ui.category
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +23,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,11 +34,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.can301_cw.data.MemoDao
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategoryScreen(modifier: Modifier = Modifier) {
+fun CategoryScreen(
+    modifier: Modifier = Modifier,
+    memoDao: MemoDao? = null,
+    onTagClick: (String) -> Unit = {}
+) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
     // Extract HSV from primary color to generate category colors
@@ -46,61 +55,110 @@ fun CategoryScreen(modifier: Modifier = Modifier) {
     val baseSaturation = hsv[1]
     val baseBrightness = hsv[2]
 
-    // Generate 10 different shades keeping the same hue, clamped to valid range [0, 1]
-    val categoryColors = listOf(
-        Color.hsv(hue, baseSaturation.coerceIn(0f, 1f), baseBrightness.coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.9f).coerceIn(0f, 1f), (baseBrightness * 0.95f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.8f).coerceIn(0f, 1f), (baseBrightness * 0.98f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.7f).coerceIn(0f, 1f), (baseBrightness * 0.92f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 1.0f).coerceIn(0f, 1f), (baseBrightness * 0.88f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.85f).coerceIn(0f, 1f), (baseBrightness * 0.96f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.95f).coerceIn(0f, 1f), (baseBrightness * 0.90f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.75f).coerceIn(0f, 1f), (baseBrightness * 0.94f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.9f).coerceIn(0f, 1f), (baseBrightness * 0.91f).coerceIn(0f, 1f)),
-        Color.hsv(hue, (baseSaturation * 0.8f).coerceIn(0f, 1f), (baseBrightness * 0.93f).coerceIn(0f, 1f))
-    )
+    // Generate category colors dynamically
+    val generateColor = { index: Int ->
+        val colorFactors = listOf(
+            1.0f to 1.0f,
+            0.9f to 0.95f,
+            0.8f to 0.98f,
+            0.7f to 0.92f,
+            1.0f to 0.88f,
+            0.85f to 0.96f,
+            0.95f to 0.90f,
+            0.75f to 0.94f,
+            0.9f to 0.91f,
+            0.8f to 0.93f
+        )
+        val (satFactor, brightFactor) = if (index < colorFactors.size) colorFactors[index] else 1.0f to 1.0f
+        Color.hsv(
+            hue,
+            (baseSaturation * satFactor).coerceIn(0f, 1f),
+            (baseBrightness * brightFactor).coerceIn(0f, 1f)
+        )
+    }
 
-    // Task type categories with sample data
-    val taskCategories = listOf(
-        TaskTypeCategory("Coupons", "COUPON", 12, categoryColors[0]),
-        TaskTypeCategory("Kids Toys", "TOY", 8, categoryColors[1]),
-        TaskTypeCategory("Learning", "LEARNING", 15, categoryColors[2]),
-        TaskTypeCategory("Safety", "SAFETY", 6, categoryColors[3]),
-        TaskTypeCategory("Archery", "ARCHERY", 9, categoryColors[4]),
-        TaskTypeCategory("Gesture Control", "GESTURE", 11, categoryColors[5]),
-        TaskTypeCategory("User Interface", "UI", 7, categoryColors[6]),
-        TaskTypeCategory("Research", "RESEARCH", 13, categoryColors[7]),
-        TaskTypeCategory("Headphone", "HEADPHONE", 5, categoryColors[8]),
-        TaskTypeCategory("Touch", "TOUCH", 10, categoryColors[9])
-    )
+    if (memoDao != null) {
+        val viewModel: CategoryViewModel = viewModel(factory = CategoryViewModel.Factory(memoDao))
+        val tagCategories by viewModel.tagCategories.collectAsState()
 
-    Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = {
+        Scaffold(
+            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Category",
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+            }
+        ) { innerPadding ->
+            if (tagCategories.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "Category",
-                        fontWeight = FontWeight.Bold
+                        text = "No tags yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                },
-                scrollBehavior = scrollBehavior
-            )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        top = innerPadding.calculateTopPadding(),
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = 16.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(
+                        items = tagCategories,
+                        key = { it.id }
+                    ) { category ->
+                        val colorIndex = tagCategories.indexOf(category) % 10
+                        TaskCategoryCard(
+                            category = category,
+                            color = generateColor(colorIndex),
+                            onClick = { onTagClick(category.name) }
+                        )
+                    }
+                }
+            }
         }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding(),
-                start = 16.dp,
-                end = 16.dp
-            )
-        ) {
-            items(
-                items = taskCategories,
-                key = { it.id }
-            ) { category ->
-                TaskCategoryCard(category)
+    } else {
+        // Fallback for preview or when memoDao is not provided
+        Scaffold(
+            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Category",
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No data available",
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }
@@ -108,16 +166,20 @@ fun CategoryScreen(modifier: Modifier = Modifier) {
 
 data class TaskTypeCategory(
     val name: String,
-    val type: String,
     val count: Int,
-    val color: Color,
-    val id: java.util.UUID = java.util.UUID.randomUUID()
+    val id: String = java.util.UUID.randomUUID().toString()
 )
 
 @Composable
-fun TaskCategoryCard(category: TaskTypeCategory) {
+fun TaskCategoryCard(
+    category: TagCategory,
+    color: Color = MaterialTheme.colorScheme.primary,
+    onClick: () -> Unit = {}
+) {
     ListItem(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         headlineContent = {
             Text(
                 text = category.name,
@@ -128,7 +190,7 @@ fun TaskCategoryCard(category: TaskTypeCategory) {
             Surface(
                 modifier = Modifier.size(32.dp),
                 shape = RoundedCornerShape(4.dp),
-                color = category.color
+                color = color
             ) {
                 Box(
                     contentAlignment = Alignment.Center,

@@ -31,6 +31,7 @@ import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.category.CategoryScreen
+import com.example.can301_cw.ui.category.TagDetailScreen
 import com.example.can301_cw.ui.home.HomeScreen
 import com.example.can301_cw.ui.home.HomeViewModel
 import com.example.can301_cw.ui.profile.DarkModeConfig
@@ -232,6 +233,8 @@ class MainActivity : ComponentActivity() {
                         MainScreen(
                             homeViewModel = homeViewModel,
                             userRepository = userRepository,
+                            database = database,
+                            navController = navController,
                             currentTheme = appTheme,
                             onThemeChange = { newTheme ->
                                 lifecycleScope.launch {
@@ -283,6 +286,45 @@ class MainActivity : ComponentActivity() {
                         MemoDetailScreen(
                             viewModel = viewModel,
                             onBackClick = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(
+                        route = "tag_detail/{tag}",
+                        arguments = listOf(navArgument("tag") { type = NavType.StringType }),
+                        enterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { -it },
+                                animationSpec = tween(300)
+                            )
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(300)
+                            )
+                        }
+                    ) { backStackEntry ->
+                        val tagEncoded = backStackEntry.arguments?.getString("tag") ?: return@composable
+                        val tag = java.net.URLDecoder.decode(tagEncoded, "UTF-8")
+                        TagDetailScreen(
+                            tag = tag,
+                            memoDao = database.memoDao(),
+                            imageStorageManager = imageStorageManager,
+                            onBackClick = { navController.popBackStack() },
+                            onMemoClick = { memoId -> navController.navigate("memo_detail/$memoId") }
                         )
                     }
 
@@ -375,6 +417,8 @@ data class BottomNavItem(
 fun MainScreen(
     homeViewModel: HomeViewModel,
     userRepository: UserRepository,
+    database: AppDatabase,
+    navController: androidx.navigation.NavController,
     currentTheme: AppTheme = AppTheme.Blue,
     onThemeChange: (AppTheme) -> Unit = {},
     onAddMemoClick: () -> Unit = {}, // Pass navigation callback
@@ -415,7 +459,10 @@ fun MainScreen(
                     onAddMemoClick = onAddMemoClick, // Pass it down
                     onMemoClick = onMemoClick
                 )
-                2 -> CategoryScreen()
+                2 -> CategoryScreen(
+                    memoDao = database.memoDao(),
+                    onTagClick = { tag -> navController.navigate("tag_detail/${java.net.URLEncoder.encode(tag, "UTF-8")}") }
+                )
                 3 -> {
                     val context = LocalContext.current
                     val application = context.applicationContext as Application
