@@ -245,11 +245,6 @@ fun MemoDetailContent(
                     1 -> ScheduleTabContent(data.schedule)
                 }
             }
-            
-            // Spacer for bottom bar
-            if (selectedTabIndex == 1) {
-                Spacer(modifier = Modifier.height(80.dp))
-            }
         }
     }
 }
