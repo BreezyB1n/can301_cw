@@ -81,7 +81,7 @@ object ArkChatClient {
                           "theme": {"type": "string"},
                           "coreTasks": {"type": "array", "items": {"type": "string"}},
                           "position": {"type": "array", "items": {"type": "string"}},
-                          "tags": {"type": "array", "items": {"type": "string"}},
+                          "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 4},
                           "category": {"type": "string"},
                           "suggestedActions": {"type": "array", "items": {"type": "string"}}
                         },
@@ -131,7 +131,8 @@ object ArkChatClient {
                     "summary": {"type": "string"},
                     "tags": {
                       "type": "array",
-                      "items": {"type": "string"}
+                      "items": {"type": "string"},
+                      "maxItems": 4
                     }
                   },
                   "required": ["title","informationItems","relatedItems","summary","tags"],
@@ -148,7 +149,7 @@ object ArkChatClient {
         val textPrompt = JsonObject().apply {
             add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
             addProperty("isimage", if (isImage) 1 else 0)
-            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English. IMPORTANT: All 'tags' arrays must contain no more than 4 items.")
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 4 items. If there are more, select only the 4 most important tags.")
             add("schema", schemaObj)
         }.toString()
 
@@ -200,7 +201,61 @@ object ArkChatClient {
             if (responseCode !in 200..299) {
                 error("HTTP $responseCode $body")
             }
-            body
+            
+            // 强制截断 tags，确保不超过 4 个
+            sanitizeResponse(body)
+        }
+    }
+
+    private fun sanitizeResponse(jsonResponse: String): String {
+        return try {
+            val responseObj = JsonParser.parseString(jsonResponse).asJsonObject
+            val choices = responseObj.getAsJsonArray("choices")
+            if (choices != null && choices.size() > 0) {
+                val message = choices.get(0).asJsonObject.getAsJsonObject("message")
+                val contentStr = message.get("content").asString
+                
+                // 解析 content 内部的 JSON
+                val contentJson = JsonParser.parseString(contentStr).asJsonObject
+                
+                // 处理 schedule.tasks 中的 tags
+                if (contentJson.has("schedule")) {
+                    val schedule = contentJson.getAsJsonObject("schedule")
+                    if (schedule.has("tasks")) {
+                        val tasks = schedule.getAsJsonArray("tasks")
+                        tasks.forEach { task ->
+                            val taskObj = task.asJsonObject
+                            if (taskObj.has("tags")) {
+                                val tags = taskObj.getAsJsonArray("tags")
+                                while (tags.size() > 4) {
+                                    tags.remove(tags.size() - 1)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // 处理 information.tags
+                if (contentJson.has("information")) {
+                    val information = contentJson.getAsJsonObject("information")
+                    if (information.has("tags")) {
+                        val tags = information.getAsJsonArray("tags")
+                        while (tags.size() > 4) {
+                            tags.remove(tags.size() - 1)
+                        }
+                    }
+                }
+                
+                // 更新 content
+                message.addProperty("content", gson.toJson(contentJson))
+                gson.toJson(responseObj)
+            } else {
+                jsonResponse
+            }
+        } catch (e: Exception) {
+            // 如果解析失败，返回原始响应（避免因格式问题导致崩溃）
+            e.printStackTrace()
+            jsonResponse
         }
     }
 }
