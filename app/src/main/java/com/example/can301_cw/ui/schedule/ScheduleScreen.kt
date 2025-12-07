@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.can301_cw.model.TaskStatus
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleScreen(viewModel: ScheduleViewModel) {
     val uiState by viewModel.uiState.collectAsState()
@@ -42,15 +43,21 @@ fun ScheduleScreen(viewModel: ScheduleViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            // Optional: Add a TopBar if needed, but the request didn't explicitly ask for one.
-            // Keeping it clean as per design description.
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Intents",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+            )
         }
     ) { padding ->
         if (uiState.groupedTasks.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(top = padding.calculateTopPadding()),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -72,12 +79,10 @@ fun ScheduleScreen(viewModel: ScheduleViewModel) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(top = padding.calculateTopPadding())
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(0.dp) // Spacing handled by items
             ) {
-                // Add a top spacer
-                item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 uiState.groupedTasks.forEach { (dateString, tasks) ->
                     item {

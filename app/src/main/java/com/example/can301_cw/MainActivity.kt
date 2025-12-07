@@ -77,7 +77,6 @@ class MainActivity : ComponentActivity() {
     }
     private val settingsRepository by lazy { SettingsRepository(database.settingsDao()) }
 
-    // 【新增 1】初始化 UserRepository
     private val userRepository by lazy { UserRepository(database.userDao(), database.settingsDao()) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -143,10 +142,8 @@ class MainActivity : ComponentActivity() {
             CAN301_CWTheme(appTheme = appTheme, customPrimaryColor = customColor, darkTheme = darkTheme) {
                 val navController = rememberNavController()
 
-                // 【修改 2】将 startDestination 从 "main" 改为 "login"
                 NavHost(navController = navController, startDestination = "main") {
 
-                    // 【新增 3】登录页面路由
                     composable(
                         route = "login",
                         enterTransition = {
@@ -455,7 +452,7 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        Box(modifier = if (selectedItem == 0 || selectedItem == 2 || selectedItem == 3) Modifier.padding(bottom = innerPadding.calculateBottomPadding()) else Modifier.padding(innerPadding)) {
+        Box(modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
             when (selectedItem) {
                 0 -> HomeScreen(
                     viewModel = homeViewModel,
