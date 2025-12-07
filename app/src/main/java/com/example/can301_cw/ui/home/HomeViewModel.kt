@@ -95,7 +95,8 @@ class HomeViewModel(
                         val updatedItem = item.copy(
                             title = apiResponse.information.title,
                             recognizedText = apiResponse.information.summary,
-                            tags = (item.tags + apiResponse.allTags).distinct().toMutableList(),
+                            // Ensure we don't exceed 6 tags even if API returns more or existing tags are present
+                            tags = (item.tags + apiResponse.allTags).distinct().take(6).toMutableList(),
                             apiResponse = apiResponse,
                             hasAPIResponse = true,
                             apiProcessedAt = Date()

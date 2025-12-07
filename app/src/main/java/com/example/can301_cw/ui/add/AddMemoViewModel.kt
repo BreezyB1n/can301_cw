@@ -156,8 +156,8 @@ class AddMemoViewModel(
                                 _uiState.update { 
                                     it.copy(
                                         apiResponse = parsedResponse,
-                                        // Auto-populate tags from AI
-                                        selectedTags = it.selectedTags + parsedResponse.allTags
+                                        // Auto-populate tags from AI, limit to 6
+                                        selectedTags = (it.selectedTags + parsedResponse.allTags).distinct().take(6).toSet()
                                     ) 
                                 }
                             }

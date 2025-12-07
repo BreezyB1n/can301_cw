@@ -81,7 +81,7 @@ object ArkChatClient {
                           "theme": {"type": "string"},
                           "coreTasks": {"type": "array", "items": {"type": "string"}},
                           "position": {"type": "array", "items": {"type": "string"}},
-                          "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 4},
+                          "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
                           "category": {"type": "string"},
                           "suggestedActions": {"type": "array", "items": {"type": "string"}}
                         },
@@ -130,10 +130,10 @@ object ArkChatClient {
                     },
                     "summary": {"type": "string"},
                     "tags": {
-                      "type": "array",
-                      "items": {"type": "string"},
-                      "maxItems": 4
-                    }
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "maxItems": 6
+                      }
                   },
                   "required": ["title","informationItems","relatedItems","summary","tags"],
                   "additionalProperties": false
@@ -149,7 +149,7 @@ object ArkChatClient {
         val textPrompt = JsonObject().apply {
             add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
             addProperty("isimage", if (isImage) 1 else 0)
-            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 4 items. If there are more, select only the 4 most important tags.")
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags.")
             add("schema", schemaObj)
         }.toString()
 
@@ -202,7 +202,7 @@ object ArkChatClient {
                 error("HTTP $responseCode $body")
             }
             
-            // 强制截断 tags，确保不超过 4 个
+            // 强制截断 tags，确保不超过 6 个
             sanitizeResponse(body)
         }
     }
@@ -227,7 +227,7 @@ object ArkChatClient {
                             val taskObj = task.asJsonObject
                             if (taskObj.has("tags")) {
                                 val tags = taskObj.getAsJsonArray("tags")
-                                while (tags.size() > 4) {
+                                while (tags.size() > 6) {
                                     tags.remove(tags.size() - 1)
                                 }
                             }
@@ -240,7 +240,7 @@ object ArkChatClient {
                     val information = contentJson.getAsJsonObject("information")
                     if (information.has("tags")) {
                         val tags = information.getAsJsonArray("tags")
-                        while (tags.size() > 4) {
+                        while (tags.size() > 6) {
                             tags.remove(tags.size() - 1)
                         }
                     }
