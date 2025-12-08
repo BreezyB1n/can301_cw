@@ -40,7 +40,10 @@ import com.example.can301_cw.model.TaskStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScheduleScreen(viewModel: ScheduleViewModel) {
+fun ScheduleScreen(
+    viewModel: ScheduleViewModel,
+    onMemoClick: (String) -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -118,6 +121,7 @@ fun ScheduleScreen(viewModel: ScheduleViewModel) {
                             shape = shape,
                             onToggleStatus = { viewModel.toggleTaskStatus(taskWrapper) },
                             onSetStatus = { status -> viewModel.setTaskStatus(taskWrapper, status) },
+                            onMemoClick = onMemoClick,
                             modifier = Modifier.padding(bottom = bottomPadding)
                         )
                     }
@@ -136,6 +140,7 @@ fun ScheduleCard(
     shape: RoundedCornerShape,
     onToggleStatus: () -> Unit,
     onSetStatus: (TaskStatus) -> Unit,
+    onMemoClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -154,7 +159,7 @@ fun ScheduleCard(
     ) {
         Column(
             modifier = Modifier
-                .clickable { expanded = !expanded }
+                .clickable { onMemoClick(taskWrapper.memoId) }
                 .padding(16.dp)
         ) {
             // Header Row
@@ -181,9 +186,10 @@ fun ScheduleCard(
                         color = if (isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
                     )
                     
-                    if (task.startTime.isNotBlank()) {
+                    val timePart = extractTime(task.startTime)
+                    if (timePart.isNotBlank()) {
                          Text(
-                            text = task.startTime, // TODO: Format this nicely if possible
+                            text = timePart,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -306,6 +312,16 @@ fun ScheduleCard(
             }
         }
     }
+}
+
+fun extractTime(startTime: String): String {
+    if (startTime.isBlank()) return ""
+    // Handle "2025-12-12 10:00" -> "10:00"
+    val parts = startTime.split(" ", "T")
+    if (parts.size > 1) {
+        return parts[1] // The time part
+    }
+    return ""
 }
 
 @Composable
