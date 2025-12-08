@@ -48,6 +48,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.ui.draw.scale
 
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -426,17 +427,50 @@ fun ScheduleTabContent(
     onToggleTaskStatus: (String) -> Unit,
     onSetTaskStatus: (String, TaskStatus) -> Unit
 ) {
-    val pendingTasks = schedule.tasks.filter { it.taskStatus == TaskStatus.PENDING }
+    var showAllTasks by remember { mutableStateOf(false) }
+
+    val visibleTasksCount = schedule.tasks.count { showAllTasks || it.taskStatus == TaskStatus.PENDING }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (pendingTasks.isEmpty()) {
-            Text("No pending tasks.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        } else {
-            pendingTasks.forEach { task ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
+            Checkbox(
+                checked = showAllTasks,
+                onCheckedChange = { showAllTasks = it },
+                modifier = Modifier
+                    .scale(0.8f)
+                    .size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Show completed/ignored Intents",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        AnimatedVisibility(
+            visible = visibleTasksCount == 0,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Text("No tasks found.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        }
+
+        schedule.tasks.forEach { task ->
+            val shouldShow = showAllTasks || task.taskStatus == TaskStatus.PENDING
+            AnimatedVisibility(
+                visible = shouldShow,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 ScheduleTaskCard(
                     task = task,
                     onToggleTaskStatus = onToggleTaskStatus,
-                    onSetTaskStatus = onSetTaskStatus
+                    onSetTaskStatus = onSetTaskStatus,
+                    showAllTasks = showAllTasks
                 )
             }
         }
@@ -447,7 +481,8 @@ fun ScheduleTabContent(
 fun ScheduleTaskCard(
     task: ScheduleTask,
     onToggleTaskStatus: (String) -> Unit,
-    onSetTaskStatus: (String, TaskStatus) -> Unit
+    onSetTaskStatus: (String, TaskStatus) -> Unit,
+    showAllTasks: Boolean
 ) {
     val coroutineScope = rememberCoroutineScope()
     var isVisible by remember { mutableStateOf(true) }
@@ -482,12 +517,18 @@ fun ScheduleTaskCard(
                         onCheckedChange = { 
                              isLocallyCompleted = !isLocallyCompleted
                              if (isLocallyCompleted) {
-                                 coroutineScope.launch {
-                                     delay(2000)
-                                     isVisible = false
-                                     delay(500)
+                                 if (!showAllTasks) {
+                                     coroutineScope.launch {
+                                         delay(2000)
+                                         isVisible = false
+                                         delay(500)
+                                         onToggleTaskStatus(task.id)
+                                     }
+                                 } else {
                                      onToggleTaskStatus(task.id)
                                  }
+                             } else {
+                                 onToggleTaskStatus(task.id)
                              }
                         }
                     )
@@ -600,24 +641,28 @@ fun ScheduleTaskCard(
                     }
 
                     Button(
-                        onClick = { 
-                            isLocallyIgnored = true
-                            coroutineScope.launch {
-                                delay(2000)
-                                isVisible = false
-                                delay(500)
-                                onSetTaskStatus(task.id, TaskStatus.IGNORED) 
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(15.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
-                    }
+                                        onClick = {
+                                            isLocallyIgnored = true
+                                            if (!showAllTasks) {
+                                                coroutineScope.launch {
+                                                    delay(2000)
+                                                    isVisible = false
+                                                    delay(500)
+                                                    onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                                                }
+                                            } else {
+                                                onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        shape = RoundedCornerShape(15.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
+                                    }
                 }
             }
         }

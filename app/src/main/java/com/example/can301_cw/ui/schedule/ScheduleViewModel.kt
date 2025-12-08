@@ -35,20 +35,27 @@ data class TaskWithMemoId(
 class ScheduleViewModel(private val memoDao: MemoDao) : ViewModel() {
 
     private val _forceRefresh = MutableStateFlow(0L)
+    private val _showAllTasks = MutableStateFlow(false)
+    val showAllTasks: StateFlow<Boolean> = _showAllTasks
+
+    fun setShowAllTasks(show: Boolean) {
+        _showAllTasks.value = show
+    }
 
     // We observe all memos and transform them into a grouped list of tasks
     val uiState: StateFlow<ScheduleUiState> = combine(
         memoDao.getAllMemos(),
-        _forceRefresh
-    ) { memos, _ ->
+        _forceRefresh,
+        _showAllTasks
+    ) { memos, _, showAll ->
             val allTasks = mutableListOf<TaskWithMemoId>()
             val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
             memos.forEach { memo ->
                 val memoDate = dateFormatter.format(memo.createdAt)
                 memo.apiResponse?.schedule?.tasks?.forEach { task ->
-                    // Filter: Only show PENDING tasks
-                    if (task.taskStatus != TaskStatus.PENDING) return@forEach
+                    // Filter: Show all if toggled, otherwise only PENDING
+                    if (!showAll && task.taskStatus != TaskStatus.PENDING) return@forEach
 
                     // Use memo creation date if task date cannot be determined
                     val taskDate = extractDate(task.startTime)
