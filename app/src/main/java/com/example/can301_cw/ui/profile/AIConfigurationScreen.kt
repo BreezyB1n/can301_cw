@@ -1,16 +1,24 @@
 package com.example.can301_cw.ui.profile
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,43 +55,94 @@ fun AIConfigurationScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Endpoint
-            OutlinedTextField(
-                value = endpoint,
-                onValueChange = { endpoint = it },
-                label = { Text("AI Endpoint URL") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                singleLine = true
+            // LLM Section
+            Text(
+                text = "LLM",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
             )
 
-            // API Key
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it },
-                label = { Text("API Key") },
-                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { showApiKey = !showApiKey }) {
-                        Icon(
-                            if (showApiKey) Icons.Filled.Check else Icons.Filled.Add, // Reusing existing icons as per original code
-                            contentDescription = "Toggle API Key visibility"
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                singleLine = true
-            )
-
-            // Save Button
-            Button(
-                onClick = { onSaveConfig(endpoint, apiKey) },
-                modifier = Modifier.fillMaxWidth()
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
             ) {
-                Text("Save Configuration")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "doubao-seed-1-6-vision-250815",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // API Key Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    // Endpoint (Hidden as requested, but keeping state if needed, or removing if strictly following instructions.
+                    // User asked to change Endpoint URL to a fixed LLM selection.
+                    // But wait, the original code had Endpoint URL input.
+                    // The prompt says "将AI EndPoint URL改为固定的一行的圆角矩形...".
+                    // It implies the endpoint configuration is replaced by this fixed selection or maybe the endpoint is hardcoded now?
+                    // "API Key和 save按钮参考Theme主题选择的样式... 嵌套在大圆角矩形中"
+                    // So we should have a card for API Key and Save button.
+
+                    OutlinedTextField(
+                        value = apiKey,
+                        onValueChange = { apiKey = it },
+                        label = { Text("API Key") },
+                        visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { showApiKey = !showApiKey }) {
+                                Icon(
+                                    if (showApiKey) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = "Toggle API Key visibility"
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color.Transparent,
+                        )
+                    )
+
+                    // Save Button
+                    FilledTonalButton(
+                        onClick = { onSaveConfig(endpoint, apiKey) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                    ) {
+                        Text("Save Configuration")
+                    }
+                }
             }
         }
     }

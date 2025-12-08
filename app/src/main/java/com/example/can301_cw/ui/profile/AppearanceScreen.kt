@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -26,9 +27,11 @@ fun AppearanceScreen(
     currentTheme: AppTheme,
     customThemeColor: Long,
     darkModeConfig: DarkModeConfig,
+    showTabLabels: Boolean,
     onThemeSelected: (AppTheme) -> Unit,
     onCustomizeColorClick: () -> Unit,
     onDarkModeConfigSelected: (DarkModeConfig) -> Unit,
+    onShowTabLabelsChange: (Boolean) -> Unit,
     onBackClick: () -> Unit
 ) {
     Scaffold(
@@ -53,113 +56,126 @@ fun AppearanceScreen(
             Text(
                 text = "Theme Color",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
             )
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                val themes = listOf(
-                    Triple(AppTheme.Blue, BluePrimary, "Blue"),
-                    Triple(AppTheme.Yellow, YellowPrimary, "Yellow"),
-                    Triple(AppTheme.Green, GreenPrimary, "Green"),
-                    Triple(AppTheme.Purple, PurplePrimary, "Purple"),
-                    Triple(AppTheme.CherryBlossom, CherryBlossomPrimary, "Cherry"),
-                    // Triple(AppTheme.StoneropGreen, StoneropGreenPrimary, "Stone")
+            
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 )
-
-                themes.forEach { (theme, color, label) ->
-                    ThemeColorOption(
-                        color = color,
-                        label = label,
-                        selected = currentTheme == theme,
-                        onClick = { onThemeSelected(theme) }
-                    )
-                }
-
-                // Custom Theme Option
-                val isCustomSet = customThemeColor != 0L
-                val customColor = if (isCustomSet) {
-                    try {
-                        Color(customThemeColor.toULong())
-                    } catch (e: Exception) {
-                        Color.Blue
-                    }
-                } else {
-                    Color.LightGray
-                }
-
+            ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.clickable {
-                        if (isCustomSet) {
-                            onThemeSelected(AppTheme.Custom)
-                        } else {
-                            onCustomizeColorClick()
-                        }
-                    }
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    Box(
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(customColor)
-                            .border(
-                                width = 2.dp,
-                                color = if (isCustomSet)
-                                    customColor.copy(alpha = 0.6f).compositeOver(Color.Black)
-                                else Color.Gray,
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
                     ) {
-                        if (isCustomSet) {
-                            if (currentTheme == AppTheme.Custom) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = "Selected",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                        val themes = listOf(
+                            Triple(AppTheme.Blue, BluePrimary, "Blue"),
+                            Triple(AppTheme.Yellow, YellowPrimary, "Yellow"),
+                            Triple(AppTheme.Green, GreenPrimary, "Green"),
+                            Triple(AppTheme.Purple, PurplePrimary, "Purple"),
+                            Triple(AppTheme.CherryBlossom, CherryBlossomPrimary, "Cherry"),
+                            // Triple(AppTheme.StoneropGreen, StoneropGreenPrimary, "Stone")
+                        )
+
+                        themes.forEach { (theme, color, label) ->
+                            ThemeColorOption(
+                                color = color,
+                                label = label,
+                                selected = currentTheme == theme,
+                                onClick = { onThemeSelected(theme) }
+                            )
+                        }
+
+                        // Custom Theme Option
+                        val isCustomSet = customThemeColor != 0L
+                        val customColor = if (isCustomSet) {
+                            try {
+                                Color(customThemeColor.toULong())
+                            } catch (e: Exception) {
+                                Color.Blue
                             }
                         } else {
+                            Color.LightGray
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable {
+                                if (isCustomSet) {
+                                    onThemeSelected(AppTheme.Custom)
+                                } else {
+                                    onCustomizeColorClick()
+                                }
+                            }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(customColor)
+                                    .border(
+                                        width = 2.dp,
+                                        color = if (isCustomSet)
+                                            customColor.copy(alpha = 0.6f).compositeOver(Color.Black)
+                                        else Color.Gray,
+                                        shape = CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isCustomSet) {
+                                    if (currentTheme == AppTheme.Custom) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "?",
+                                        color = Color.DarkGray,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
                             Text(
-                                text = "?",
-                                color = Color.DarkGray,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
+                                text = "Custom",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Custom",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    // Custom Color Button
+                    FilledTonalButton(
+                        onClick = onCustomizeColorClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Text("Customize Color")
+                    }
                 }
             }
 
-            // Custom Color Button
-            FilledTonalButton(
-                onClick = onCustomizeColorClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                Text("Customize Color")
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Dark Mode
             Text(
                 text = "Dark Mode",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
             )
 
             val darkModeOptions = listOf(
@@ -168,26 +184,87 @@ fun AppearanceScreen(
                 DarkModeConfig.DARK to "Dark"
             )
 
-            darkModeOptions.forEach { (config, label) ->
+            darkModeOptions.forEachIndexed { index, (config, label) ->
+                val shape = when {
+                    darkModeOptions.size == 1 -> RoundedCornerShape(24.dp)
+                    index == 0 -> RoundedCornerShape(
+                        topStart = 24.dp,
+                        topEnd = 24.dp,
+                        bottomStart = 4.dp,
+                        bottomEnd = 4.dp
+                    )
+                    index == darkModeOptions.size - 1 -> RoundedCornerShape(
+                        topStart = 4.dp,
+                        topEnd = 4.dp,
+                        bottomStart = 24.dp,
+                        bottomEnd = 24.dp
+                    )
+                    else -> RoundedCornerShape(4.dp)
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onDarkModeConfigSelected(config) },
+                    shape = shape,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (darkModeConfig == config) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+                
+                if (index < darkModeOptions.size - 1) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Custom Settings
+            Text(
+                text = "Custom",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onDarkModeConfigSelected(config) }
-                        .padding(vertical = 12.dp),
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
+                        text = "Show Tab Labels",
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                    if (darkModeConfig == config) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = "Selected",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Switch(
+                        checked = showTabLabels,
+                        onCheckedChange = onShowTabLabelsChange
+                    )
                 }
             }
         }
@@ -245,9 +322,11 @@ fun AppearanceScreenPreview() {
             currentTheme = AppTheme.Blue,
             customThemeColor = 0L,
             darkModeConfig = DarkModeConfig.FOLLOW_SYSTEM,
+            showTabLabels = false,
             onThemeSelected = {},
             onCustomizeColorClick = {},
             onDarkModeConfigSelected = {},
+            onShowTabLabelsChange = {},
             onBackClick = {}
         )
     }

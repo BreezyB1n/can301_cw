@@ -78,10 +78,10 @@ class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
     private val reminderScheduler by lazy { ReminderScheduler(this) }
-    private val homeViewModel by viewModels<HomeViewModel> {
-        HomeViewModel.Factory(database.memoDao(), imageStorageManager)
-    }
     private val settingsRepository by lazy { SettingsRepository(database.settingsDao()) }
+    private val homeViewModel by viewModels<HomeViewModel> {
+        HomeViewModel.Factory(database.memoDao(), imageStorageManager, settingsRepository)
+    }
 
     private val userRepository by lazy { UserRepository(database.userDao(), database.settingsDao()) }
 
@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
             val darkModeConfigName by settingsRepository.darkModeConfig.collectAsState(initial = "FOLLOW_SYSTEM")
             val lastSystemDarkMode by settingsRepository.lastSystemDarkMode.collectAsState(initial = null)
             val customThemeColorValue by settingsRepository.customThemeColor.collectAsState(initial = 0L)
+            val showTabLabels by settingsRepository.showTabLabels.collectAsState(initial = false)
 
             val isSystemDark = isSystemInDarkTheme()
 
@@ -277,6 +278,7 @@ class MainActivity : ComponentActivity() {
                             database = database,
                             navController = navController,
                             currentTheme = appTheme,
+                            showTabLabels = showTabLabels,
                             onThemeChange = { newTheme ->
                                 lifecycleScope.launch {
                                     settingsRepository.setThemeColor(newTheme.name)
@@ -322,7 +324,7 @@ class MainActivity : ComponentActivity() {
                     ) { backStackEntry ->
                         val memoId = backStackEntry.arguments?.getString("memoId") ?: return@composable
                         val viewModel: MemoDetailViewModel = viewModel(
-                            factory = MemoDetailViewModel.Factory(database.memoDao(), imageStorageManager, memoId, reminderScheduler)
+                            factory = MemoDetailViewModel.Factory(database.memoDao(), imageStorageManager, memoId, reminderScheduler, settingsRepository)
                         )
                         MemoDetailScreen(
                             viewModel = viewModel,
@@ -478,6 +480,7 @@ fun MainScreen(
     database: AppDatabase,
     navController: androidx.navigation.NavController,
     currentTheme: AppTheme = AppTheme.Blue,
+    showTabLabels: Boolean = false,
     onThemeChange: (AppTheme) -> Unit = {},
     onAddMemoClick: () -> Unit = {}, // Pass navigation callback
     onMemoClick: (String) -> Unit = {},
@@ -492,7 +495,7 @@ fun MainScreen(
         BottomNavItem("Account", Icons.Filled.AccountCircle)
     )
 
-    val navigationBarHeight = 52.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navigationBarHeight = (if (showTabLabels) 80.dp else 52.dp) + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Scaffold(
         Modifier.fillMaxSize(), bottomBar = {
@@ -503,6 +506,8 @@ fun MainScreen(
                 items.forEachIndexed { index, item ->
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.name) },
+                        label = if (showTabLabels) { { Text(item.name) } } else null,
+                        alwaysShowLabel = showTabLabels,
                         selected = selectedItem == index,
                         onClick = { selectedItem = index }
                     )

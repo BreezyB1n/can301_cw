@@ -2,6 +2,7 @@ package com.example.can301_cw.data
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.example.can301_cw.network.ARK_API_KEY
 
 class SettingsRepository(private val settingsDao: SettingsDao) {
 
@@ -16,6 +17,7 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
         const val KEY_DARK_MODE_CONFIG = "dark_mode_config"
         const val KEY_LAST_SYSTEM_DARK_MODE = "last_system_dark_mode"
         const val KEY_CUSTOM_THEME_COLOR = "custom_theme_color"
+        const val KEY_SHOW_TAB_LABELS = "show_tab_labels"
     }
 
     val notificationsEnabled: Flow<Boolean> = settingsDao.getValueFlow(KEY_NOTIFICATIONS_ENABLED)
@@ -28,7 +30,7 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
         .map { it ?: "https://api.example.com/analyze-image" }
 
     val aiApiKey: Flow<String> = settingsDao.getValueFlow(KEY_AI_API_KEY)
-        .map { it ?: "" }
+        .map { it ?: ARK_API_KEY }
 
     val calendarSyncEnabled: Flow<Boolean> = settingsDao.getValueFlow(KEY_CALENDAR_SYNC_ENABLED)
         .map { it?.toBoolean() ?: false }
@@ -47,6 +49,9 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
 
     val customThemeColor: Flow<Long> = settingsDao.getValueFlow(KEY_CUSTOM_THEME_COLOR)
         .map { it?.toLongOrNull() ?: 0L }
+
+    val showTabLabels: Flow<Boolean> = settingsDao.getValueFlow(KEY_SHOW_TAB_LABELS)
+        .map { it?.toBoolean() ?: false }
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         settingsDao.insert(SettingsEntity(KEY_NOTIFICATIONS_ENABLED, enabled.toString()))
@@ -86,6 +91,10 @@ class SettingsRepository(private val settingsDao: SettingsDao) {
 
     suspend fun setCustomThemeColor(colorValue: Long) {
         settingsDao.insert(SettingsEntity(KEY_CUSTOM_THEME_COLOR, colorValue.toString()))
+    }
+
+    suspend fun setShowTabLabels(enabled: Boolean) {
+        settingsDao.insert(SettingsEntity(KEY_SHOW_TAB_LABELS, enabled.toString()))
     }
 }
 

@@ -20,6 +20,7 @@ import java.time.ZoneOffset
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReminderDialog(
+    defaultOffsetMinutes: Int = 5,
     onDismissRequest: () -> Unit,
     onConfirm: (Long) -> Unit
 ) {
@@ -33,8 +34,8 @@ fun ReminderDialog(
         initialSelectedDateMillis = todayUtcMillis
     )
     
-    // Initial time: now + 5 minutes
-    val initialTime = now.plusMinutes(5)
+    // Initial time: now + defaultOffsetMinutes minutes
+    val initialTime = now.plusMinutes(defaultOffsetMinutes.toLong())
 
     val timePickerState = rememberTimePickerState(
         initialHour = initialTime.hour,
@@ -49,7 +50,8 @@ fun ReminderDialog(
         Dialog(onDismissRequest = onDismissRequest) {
             Surface(
                 shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp,
                 modifier = Modifier.wrapContentSize()
             ) {
                 Column(
@@ -102,6 +104,10 @@ fun ReminderDialog(
         // Date Picker
         DatePickerDialog(
             onDismissRequest = onDismissRequest,
+            colors = DatePickerDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            tonalElevation = 0.dp,
             confirmButton = {
                 TextButton(onClick = { showTimePicker = true }) {
                     Text("Next")

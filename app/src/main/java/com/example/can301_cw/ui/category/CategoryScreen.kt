@@ -13,15 +13,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -134,16 +136,38 @@ fun CategoryScreen(
                         end = 16.dp,
                         bottom = 16.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    items(
+                    itemsIndexed(
                         items = tagCategories,
-                        key = { it.id }
-                    ) { category ->
-                        val colorIndex = tagCategories.indexOf(category) % 10
+                        key = { _, item -> item.id }
+                    ) { index, category ->
+                        val colorIndex = index % 10
+                        
+                        val shape = when {
+                            tagCategories.size == 1 -> RoundedCornerShape(24.dp)
+                            index == 0 -> RoundedCornerShape(
+                                topStart = 24.dp,
+                                topEnd = 24.dp,
+                                bottomStart = 4.dp,
+                                bottomEnd = 4.dp
+                            )
+                            index == tagCategories.size - 1 -> RoundedCornerShape(
+                                topStart = 4.dp,
+                                topEnd = 4.dp,
+                                bottomStart = 24.dp,
+                                bottomEnd = 24.dp
+                            )
+                            else -> RoundedCornerShape(4.dp)
+                        }
+
+                        val bottomPadding = if (index == tagCategories.size - 1) 0.dp else 2.dp
+
                         TaskCategoryCard(
                             category = category,
                             color = generateColor(colorIndex),
+                            shape = shape,
+                            modifier = Modifier.padding(bottom = bottomPadding),
                             onClick = { onTagClick(category.name) }
                         )
                     }
@@ -181,80 +205,81 @@ fun CategoryScreen(
     }
 }
 
-data class TaskTypeCategory(
-    val name: String,
-    val count: Int,
-    val id: String = java.util.UUID.randomUUID().toString()
-)
-
 @Composable
 fun TaskCategoryCard(
     category: TagCategory,
     color: Color = MaterialTheme.colorScheme.primary,
+    shape: RoundedCornerShape = RoundedCornerShape(4.dp),
+    modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    ListItem(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        headlineContent = {
-            Text(
-                text = category.name,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
-        },
-        leadingContent = {
-            Surface(
-                modifier = Modifier.size(32.dp),
-                shape = RoundedCornerShape(4.dp),
-                color = color
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Text(
-                        text = "#",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                        fontSize = 18.sp
-                    )
-                }
-            }
-        },
-        trailingContent = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        ListItem(
+            modifier = Modifier
+                .clickable { onClick() },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = {
+                Text(
+                    text = category.name,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                )
+            },
+            leadingContent = {
                 Surface(
-                    modifier = Modifier.size(28.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                    modifier = Modifier.size(32.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = color
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxSize()
                     ) {
                         Text(
-                            text = category.count.toString(),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            fontSize = 12.sp
+                            text = "#",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                            fontSize = 18.sp
                         )
                     }
                 }
-                Text(
-                    text = ">",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 4.dp)
-                )
+            },
+            trailingContent = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(28.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Text(
+                                text = category.count.toString(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        }
-    )
+        )
+    }
 }
 
 @Preview

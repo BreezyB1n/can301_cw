@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.MemoDao
+import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,8 +24,16 @@ class MemoDetailViewModel(
     private val memoDao: MemoDao,
     private val imageStorageManager: ImageStorageManager,
     private val memoId: String,
-    private val reminderScheduler: ReminderScheduler
+    private val reminderScheduler: ReminderScheduler,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+
+    val defaultRemindOffset: StateFlow<Int> = settingsRepository.defaultRemindOffsetMinutes
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 5
+        )
 
     val memoItem: StateFlow<MemoItem?> = memoDao.getMemoById(memoId)
         .map { item ->
@@ -142,12 +151,13 @@ class MemoDetailViewModel(
         private val memoDao: MemoDao,
         private val imageStorageManager: ImageStorageManager,
         private val memoId: String,
-        private val reminderScheduler: ReminderScheduler
+        private val reminderScheduler: ReminderScheduler,
+        private val settingsRepository: SettingsRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(MemoDetailViewModel::class.java)) {
-                return MemoDetailViewModel(memoDao, imageStorageManager, memoId, reminderScheduler) as T
+                return MemoDetailViewModel(memoDao, imageStorageManager, memoId, reminderScheduler, settingsRepository) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
