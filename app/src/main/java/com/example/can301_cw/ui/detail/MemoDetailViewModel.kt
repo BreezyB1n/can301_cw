@@ -17,10 +17,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.firstOrNull
 
+import com.example.can301_cw.notification.ReminderScheduler
+
 class MemoDetailViewModel(
     private val memoDao: MemoDao,
     private val imageStorageManager: ImageStorageManager,
-    private val memoId: String
+    private val memoId: String,
+    private val reminderScheduler: ReminderScheduler
 ) : ViewModel() {
 
     val memoItem: StateFlow<MemoItem?> = memoDao.getMemoById(memoId)
@@ -101,15 +104,50 @@ class MemoDetailViewModel(
     }
 
 
+    fun setTaskReminder(taskId: String, timestamp: Long) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val memo = memoItem.value ?: return@withContext
+                    val currentApiResponse = memo.apiResponse ?: return@withContext
+                    
+                    var hasChanges = false
+                    val updatedTasks = currentApiResponse.schedule.tasks.map {
+                        if (it.id == taskId) {
+                            hasChanges = true
+                            it.copy(reminderTime = timestamp)
+                        } else {
+                            it
+                        }
+                    }
+
+                    if (hasChanges) {
+                        val updatedSchedule = currentApiResponse.schedule.copy(tasks = updatedTasks)
+                        val updatedApiResponse = currentApiResponse.copy(schedule = updatedSchedule)
+                        val updatedMemo = memo.copy(apiResponse = updatedApiResponse)
+                        memoDao.insertMemo(updatedMemo)
+                        
+                        // Schedule Notification
+                        reminderScheduler.scheduleTaskReminder(updatedMemo, taskId, timestamp)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+
     class Factory(
         private val memoDao: MemoDao,
         private val imageStorageManager: ImageStorageManager,
-        private val memoId: String
+        private val memoId: String,
+        private val reminderScheduler: ReminderScheduler
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(MemoDetailViewModel::class.java)) {
-                return MemoDetailViewModel(memoDao, imageStorageManager, memoId) as T
+                return MemoDetailViewModel(memoDao, imageStorageManager, memoId, reminderScheduler) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

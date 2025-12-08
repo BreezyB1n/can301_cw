@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Notifications
@@ -42,15 +43,26 @@ import kotlinx.coroutines.launch
 
 import com.example.can301_cw.model.TaskStatus
 
-@OptIn(ExperimentalMaterial3Api::class)
+import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.ExperimentalFoundationApi
+
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.example.can301_cw.ui.components.ReminderDialog
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleScreen(
     viewModel: ScheduleViewModel,
-    onMemoClick: (String) -> Unit
+    onMemoClick: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val showAllTasks by viewModel.showAllTasks.collectAsState()
 
     Scaffold(
+        modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
@@ -63,76 +75,109 @@ fun ScheduleScreen(
             )
         }
     ) { padding ->
-        if (uiState.groupedTasks.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding()),
-                contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = padding.calculateTopPadding())
+                .padding(horizontal = 16.dp)
+        ) {
+            // Checkbox Row (Always visible at top)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 4.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Filled.Notifications,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No schedules found",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Checkbox(
+                    checked = showAllTasks,
+                    onCheckedChange = { viewModel.setShowAllTasks(it) },
+                    modifier = Modifier
+                        .scale(0.8f)
+                        .size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Show completed/ignored Intents",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = padding.calculateTopPadding())
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp) // Spacing handled by items
-            ) {
 
-                uiState.groupedTasks.forEach { (dateString, tasks) ->
-                    item {
+            if (uiState.groupedTasks.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.Event,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = dateString,
+                            text = "No intents found",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 12.dp, start = 4.dp, top = 16.dp)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-
-                    itemsIndexed(
-                        items = tasks,
-                        key = { _, item -> item.task.id }
-                    ) { index, taskWrapper ->
-                        // Calculate shape based on position
-                        val shape = when {
-                            tasks.size == 1 -> RoundedCornerShape(24.dp) // Only one item
-                            index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 4.dp, bottomEnd = 4.dp) // First
-                            index == tasks.size - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 24.dp, bottomEnd = 24.dp) // Last
-                            else -> RoundedCornerShape(4.dp) // Middle
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    uiState.groupedTasks.forEach { (dateString, tasks) ->
+                        item {
+                            Text(
+                                text = dateString,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 12.dp, start = 4.dp, top = 16.dp)
+                            )
                         }
 
-                        // Calculate bottom margin (small gap between merged cards)
-                        val bottomPadding = if (index == tasks.size - 1) 0.dp else 2.dp
+                        itemsIndexed(
+                            items = tasks,
+                            key = { _, item -> item.task.id }
+                        ) { index, taskWrapper ->
+                            // Calculate shape based on position
+                            val shape = when {
+                                tasks.size == 1 -> RoundedCornerShape(24.dp) // Only one item
+                                index == 0 -> RoundedCornerShape(
+                                    topStart = 24.dp,
+                                    topEnd = 24.dp,
+                                    bottomStart = 4.dp,
+                                    bottomEnd = 4.dp
+                                ) // First
+                                index == tasks.size - 1 -> RoundedCornerShape(
+                                    topStart = 4.dp,
+                                    topEnd = 4.dp,
+                                    bottomStart = 24.dp,
+                                    bottomEnd = 24.dp
+                                ) // Last
+                                else -> RoundedCornerShape(4.dp) // Middle
+                            }
 
-                        ScheduleCard(
-                            taskWrapper = taskWrapper,
-                            shape = shape,
-                            onToggleStatus = { viewModel.toggleTaskStatus(taskWrapper) },
-                            onSetStatus = { status -> viewModel.setTaskStatus(taskWrapper, status) },
-                            onMemoClick = onMemoClick,
-                            modifier = Modifier.padding(bottom = bottomPadding)
-                        )
+                            // Calculate bottom margin (small gap between merged cards)
+                            val bottomPadding = if (index == tasks.size - 1) 0.dp else 2.dp
+
+                            ScheduleCard(
+                                taskWrapper = taskWrapper,
+                                shape = shape,
+                                onToggleStatus = { viewModel.toggleTaskStatus(taskWrapper) },
+                                onSetStatus = { status -> viewModel.setTaskStatus(taskWrapper, status) },
+                                onSetReminder = { timestamp -> viewModel.setTaskReminder(taskWrapper, timestamp) },
+                                onMemoClick = onMemoClick,
+                                showAllTasks = showAllTasks,
+                                modifier = Modifier.padding(bottom = bottomPadding).animateItem()
+                            )
+                        }
                     }
+
+                    // Bottom spacer for navigation bar
+                    item { Spacer(modifier = Modifier.height(88.dp)) }
                 }
-                
-                // Bottom spacer for navigation bar
-                item { Spacer(modifier = Modifier.height(88.dp)) }
             }
         }
     }
@@ -144,7 +189,9 @@ fun ScheduleCard(
     shape: RoundedCornerShape,
     onToggleStatus: () -> Unit,
     onSetStatus: (TaskStatus) -> Unit,
+    onSetReminder: (Long) -> Unit,
     onMemoClick: (String) -> Unit,
+    showAllTasks: Boolean,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -155,6 +202,18 @@ fun ScheduleCard(
     var isVisible by remember { mutableStateOf(true) }
     var isLocallyCompleted by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.COMPLETED) }
     var isLocallyIgnored by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.IGNORED) }
+    
+    var showReminderDialog by remember { mutableStateOf(false) }
+
+    if (showReminderDialog) {
+        ReminderDialog(
+            onDismissRequest = { showReminderDialog = false },
+            onConfirm = { timestamp ->
+                onSetReminder(timestamp)
+                showReminderDialog = false
+            }
+        )
+    }
 
     // If it's already ignored/completed in DB, we don't show it (handled by parent list),
     // but if it becomes ignored/completed locally, we handle animation.
@@ -185,12 +244,18 @@ fun ScheduleCard(
                         onCheckedChange = { 
                             isLocallyCompleted = !isLocallyCompleted
                             if (isLocallyCompleted) {
-                                coroutineScope.launch {
-                                    delay(2000) // 2s delay
-                                    isVisible = false
-                                    delay(500) // Wait for exit animation
-                                    onToggleStatus() 
+                                if (!showAllTasks) {
+                                    coroutineScope.launch {
+                                        delay(2000) // 2s delay
+                                        isVisible = false
+                                        delay(500) // Wait for exit animation
+                                        onToggleStatus() 
+                                    }
+                                } else {
+                                    onToggleStatus()
                                 }
+                            } else {
+                                onToggleStatus()
                             }
                         }
                     )
@@ -207,12 +272,27 @@ fun ScheduleCard(
                         )
                         
                         val timePart = extractTime(task.startTime)
-                        if (timePart.isNotBlank()) {
-                             Text(
-                                text = timePart,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        val shouldShowTime = shouldShowTime(task.startTime, timePart)
+                        
+                        Column {
+                            if (shouldShowTime) {
+                                Text(
+                                    text = timePart,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) {
+                                val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                                val prefix = if (shouldShowTime) "· " else ""
+                                Text(
+                                    text = "${prefix}Remind at ${dateFormat.format(Date(task.reminderTime!!))}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                     
@@ -305,7 +385,7 @@ fun ScheduleCard(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Button(
-                                onClick = { /* TODO: Implement Reminder Logic */ },
+                                onClick = { showReminderDialog = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                 shape = RoundedCornerShape(15.dp),
@@ -313,16 +393,20 @@ fun ScheduleCard(
                             ) {
                                 Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Set Reminder", style = MaterialTheme.typography.labelMedium)
+                                Text(if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) "Update Reminder" else "Set Reminder", style = MaterialTheme.typography.labelMedium)
                             }
 
                             Button(
                                 onClick = { 
                                     isLocallyIgnored = true
-                                    coroutineScope.launch {
-                                        delay(2000)
-                                        isVisible = false
-                                        delay(500)
+                                    if (!showAllTasks) {
+                                        coroutineScope.launch {
+                                            delay(2000)
+                                            isVisible = false
+                                            delay(500)
+                                            onSetStatus(TaskStatus.IGNORED)
+                                        }
+                                    } else {
                                         onSetStatus(TaskStatus.IGNORED)
                                     }
                                 },
@@ -348,9 +432,34 @@ fun extractTime(startTime: String): String {
     // Handle "2025-12-12 10:00" -> "10:00"
     val parts = startTime.split(" ", "T")
     if (parts.size > 1) {
+        // If it has seconds like 10:00:00, take first two parts
+        val timeParts = parts[1].split(":")
+        if (timeParts.size >= 2) {
+            return "${timeParts[0]}:${timeParts[1]}"
+        }
         return parts[1] // The time part
     }
     return ""
+}
+
+fun shouldShowTime(startTime: String, timePart: String): Boolean {
+    if (timePart.isBlank()) return false
+    if (timePart == "00:00") return false
+    if (timePart == "Today" || timePart == "oday") return false
+    
+    // Check if date is today
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val today = dateFormat.format(Date())
+    
+    val parts = startTime.split(" ", "T")
+    if (parts.isNotEmpty()) {
+        val datePart = parts[0]
+        if (datePart == today) {
+             return false
+        }
+    }
+    
+    return true
 }
 
 @Composable
@@ -377,4 +486,3 @@ fun CircularCheckbox(
         )
     }
 }
-

@@ -9,6 +9,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
@@ -48,9 +50,12 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.ui.draw.scale
 
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import com.example.can301_cw.ui.components.ReminderDialog
 
 @Composable
 fun MemoDetailScreen(
@@ -78,7 +83,8 @@ fun MemoDetailScreen(
             originalTitle = item.title,
             tags = item.tags,
             onToggleTaskStatus = viewModel::toggleTaskStatus,
-            onSetTaskStatus = viewModel::setTaskStatus
+            onSetTaskStatus = viewModel::setTaskStatus,
+            onSetTaskReminder = viewModel::setTaskReminder
         )
     }
 }
@@ -122,11 +128,12 @@ fun MemoDetailContent(
     originalTitle: String = "",
     tags: List<String> = emptyList(),
     onToggleTaskStatus: (String) -> Unit = {},
-    onSetTaskStatus: (String, TaskStatus) -> Unit = { _, _ -> }
+    onSetTaskStatus: (String, TaskStatus) -> Unit = { _, _ -> },
+    onSetTaskReminder: (String, Long) -> Unit = { _, _ -> }
 ) {
     val scrollState = rememberScrollState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Info", "Schedule")
+    val tabs = listOf("Info", "Intents")
     var showFullScreenImage by remember { mutableStateOf(false) }
 
     if (showFullScreenImage && imageData != null && imageData.isNotEmpty()) {
@@ -257,7 +264,8 @@ fun MemoDetailContent(
                     1 -> ScheduleTabContent(
                         schedule = data.schedule,
                         onToggleTaskStatus = onToggleTaskStatus,
-                        onSetTaskStatus = onSetTaskStatus
+                        onSetTaskStatus = onSetTaskStatus,
+                        onSetTaskReminder = onSetTaskReminder
                     )
                 }
             }
@@ -424,19 +432,74 @@ fun CircularCheckbox(
 fun ScheduleTabContent(
     schedule: Schedule,
     onToggleTaskStatus: (String) -> Unit,
-    onSetTaskStatus: (String, TaskStatus) -> Unit
+    onSetTaskStatus: (String, TaskStatus) -> Unit,
+    onSetTaskReminder: (String, Long) -> Unit
 ) {
-    val pendingTasks = schedule.tasks.filter { it.taskStatus == TaskStatus.PENDING }
+    var showAllTasks by remember { mutableStateOf(false) }
+
+    val visibleTasksCount = schedule.tasks.count { showAllTasks || it.taskStatus == TaskStatus.PENDING }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (pendingTasks.isEmpty()) {
-            Text("No pending tasks.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
-        } else {
-            pendingTasks.forEach { task ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
+            Checkbox(
+                checked = showAllTasks,
+                onCheckedChange = { showAllTasks = it },
+                modifier = Modifier
+                    .scale(0.8f)
+                    .size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Show completed/ignored Intents",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        AnimatedVisibility(
+            visible = visibleTasksCount == 0,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Filled.Event,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No intents found",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        schedule.tasks.forEach { task ->
+            val shouldShow = showAllTasks || task.taskStatus == TaskStatus.PENDING
+            AnimatedVisibility(
+                visible = shouldShow,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
                 ScheduleTaskCard(
                     task = task,
                     onToggleTaskStatus = onToggleTaskStatus,
-                    onSetTaskStatus = onSetTaskStatus
+                    onSetTaskStatus = onSetTaskStatus,
+                    onSetTaskReminder = onSetTaskReminder,
+                    showAllTasks = showAllTasks
                 )
             }
         }
@@ -447,7 +510,9 @@ fun ScheduleTabContent(
 fun ScheduleTaskCard(
     task: ScheduleTask,
     onToggleTaskStatus: (String) -> Unit,
-    onSetTaskStatus: (String, TaskStatus) -> Unit
+    onSetTaskStatus: (String, TaskStatus) -> Unit,
+    onSetTaskReminder: (String, Long) -> Unit,
+    showAllTasks: Boolean
 ) {
     val coroutineScope = rememberCoroutineScope()
     var isVisible by remember { mutableStateOf(true) }
@@ -455,6 +520,18 @@ fun ScheduleTaskCard(
     // UI states for delayed interaction
     var isLocallyCompleted by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.COMPLETED) }
     var isLocallyIgnored by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.IGNORED) }
+
+    var showReminderDialog by remember { mutableStateOf(false) }
+
+    if (showReminderDialog) {
+        ReminderDialog(
+            onDismissRequest = { showReminderDialog = false },
+            onConfirm = { timestamp ->
+                onSetTaskReminder(task.id, timestamp)
+                showReminderDialog = false
+            }
+        )
+    }
 
     AnimatedVisibility(
         visible = isVisible,
@@ -482,12 +559,18 @@ fun ScheduleTaskCard(
                         onCheckedChange = { 
                              isLocallyCompleted = !isLocallyCompleted
                              if (isLocallyCompleted) {
-                                 coroutineScope.launch {
-                                     delay(2000)
-                                     isVisible = false
-                                     delay(500)
+                                 if (!showAllTasks) {
+                                     coroutineScope.launch {
+                                         delay(2000)
+                                         isVisible = false
+                                         delay(500)
+                                         onToggleTaskStatus(task.id)
+                                     }
+                                 } else {
                                      onToggleTaskStatus(task.id)
                                  }
+                             } else {
+                                 onToggleTaskStatus(task.id)
                              }
                         }
                     )
@@ -503,13 +586,28 @@ fun ScheduleTaskCard(
                             color = if (isLocallyCompleted || isLocallyIgnored) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
                         )
                         
-                        // Time
-                        if (task.startTime.isNotEmpty()) {
-                            Text(
-                                text = task.startTime,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        // Time and Reminder Info
+                        Column {
+                            if (task.startTime.isNotEmpty()) {
+                                Text(
+                                    text = task.startTime,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) {
+                                val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                                val prefix = if (task.startTime.isNotEmpty()) "· " else ""
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "${prefix}Remind at ${dateFormat.format(Date(task.reminderTime!!))}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -588,7 +686,7 @@ fun ScheduleTaskCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Button(
-                        onClick = { /* TODO: Implement Reminder Logic */ },
+                        onClick = { showReminderDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(15.dp),
@@ -596,28 +694,32 @@ fun ScheduleTaskCard(
                     ) {
                         Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Set Reminder", style = MaterialTheme.typography.labelMedium)
+                        Text(if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) "Update Reminder" else "Set Reminder", style = MaterialTheme.typography.labelMedium)
                     }
 
                     Button(
-                        onClick = { 
-                            isLocallyIgnored = true
-                            coroutineScope.launch {
-                                delay(2000)
-                                isVisible = false
-                                delay(500)
-                                onSetTaskStatus(task.id, TaskStatus.IGNORED) 
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        shape = RoundedCornerShape(15.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
-                    }
+                                        onClick = {
+                                            isLocallyIgnored = true
+                                            if (!showAllTasks) {
+                                                coroutineScope.launch {
+                                                    delay(2000)
+                                                    isVisible = false
+                                                    delay(500)
+                                                    onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                                                }
+                                            } else {
+                                                onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        shape = RoundedCornerShape(15.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
+                                    }
                 }
             }
         }

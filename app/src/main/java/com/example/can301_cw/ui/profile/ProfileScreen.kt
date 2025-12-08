@@ -329,7 +329,7 @@ fun ProfileScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "MemoFlux AI Assistant v1.0.0",
+                                text = "Memento AI Assistant v1.0.0",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

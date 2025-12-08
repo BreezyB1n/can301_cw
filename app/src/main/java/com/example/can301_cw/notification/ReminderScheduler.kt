@@ -8,12 +8,16 @@ import android.os.Build
 import com.example.can301_cw.model.MemoItem
 import java.util.Date
 
+import android.util.Log
+
 /**
  * 提醒调度器
  * 负责设置、更新和取消闹钟提醒
  */
 class ReminderScheduler(private val context: Context) {
     
+    private val TAG = "ReminderScheduler"
+
     private val alarmManager: AlarmManager by lazy {
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     }
@@ -40,12 +44,9 @@ class ReminderScheduler(private val context: Context) {
         
         val pendingIntent = createPendingIntent(memo)
         
-        // 设置精确闹钟，即使在 Doze 模式下也能触发
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            scheduledDate.time,
-            pendingIntent
-        )
+        // Use setAlarmClock for better reliability
+        val alarmClockInfo = AlarmManager.AlarmClockInfo(scheduledDate.time, pendingIntent)
+        alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
         
         return true
     }
@@ -71,11 +72,9 @@ class ReminderScheduler(private val context: Context) {
         
         val pendingIntent = createPendingIntent(memo)
         
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            triggerTime.time,
-            pendingIntent
-        )
+        // Use setAlarmClock for better reliability
+        val alarmClockInfo = AlarmManager.AlarmClockInfo(triggerTime.time, pendingIntent)
+        alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
         
         return true
     }
@@ -140,6 +139,67 @@ class ReminderScheduler(private val context: Context) {
         return PendingIntent.getBroadcast(
             context,
             memo.id.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    /**
+     * 为特定任务设置提醒
+     */
+    fun scheduleTaskReminder(memo: MemoItem, taskId: String, reminderTime: Long): Boolean {
+        Log.d(TAG, "scheduleTaskReminder: taskId=$taskId, time=$reminderTime")
+        if (reminderTime <= System.currentTimeMillis()) {
+            Log.w(TAG, "scheduleTaskReminder: Time is in the past")
+            return false
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!alarmManager.canScheduleExactAlarms()) {
+                Log.e(TAG, "scheduleTaskReminder: Cannot schedule exact alarms")
+                return false
+            }
+        }
+
+        val pendingIntent = createTaskPendingIntent(memo, taskId)
+
+        // Use setAlarmClock for better reliability in Doze mode
+        val alarmClockInfo = AlarmManager.AlarmClockInfo(reminderTime, pendingIntent)
+        alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        
+        Log.d(TAG, "scheduleTaskReminder: Alarm set successfully using setAlarmClock")
+
+        return true
+    }
+
+    /**
+     * 取消特定任务的提醒
+     */
+    fun cancelTaskReminder(taskId: String) {
+        val intent = Intent(context, ReminderReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            taskId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(pendingIntent)
+    }
+
+    private fun createTaskPendingIntent(memo: MemoItem, taskId: String): PendingIntent {
+        // Find the task title/content
+        val task = memo.apiResponse?.schedule?.tasks?.find { it.id == taskId }
+        val content = task?.theme ?: "Task Reminder"
+
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            putExtra(ReminderReceiver.EXTRA_MEMO_ID, memo.id)
+            putExtra(ReminderReceiver.EXTRA_TITLE, "Task Reminder")
+            putExtra(ReminderReceiver.EXTRA_CONTENT, content)
+        }
+
+        return PendingIntent.getBroadcast(
+            context,
+            taskId.hashCode(), // Use taskId hashcode for unique PendingIntent
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

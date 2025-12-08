@@ -14,12 +14,15 @@ import androidx.core.app.NotificationManagerCompat
 import com.example.can301_cw.MainActivity
 import com.example.can301_cw.R
 
+import android.util.Log
+
 /**
  * 通知帮助类
  * 负责创建通知渠道和发送通知
  */
 object NotificationHelper {
     
+    private const val TAG = "NotificationHelper"
     const val CHANNEL_ID = "memo_reminder_channel"
     private const val CHANNEL_NAME = "备忘录提醒"
     private const val CHANNEL_DESCRIPTION = "备忘录任务提醒通知"
@@ -56,6 +59,20 @@ object NotificationHelper {
         title: String,
         content: String
     ) {
+        // 检查权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.w(TAG, "showNotification: POST_NOTIFICATIONS permission denied")
+                return
+            }
+        }
+        
+        Log.d(TAG, "showNotification: Building and showing notification for $title")
+        
         // 构建点击通知后的 Intent
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -71,7 +88,7 @@ object NotificationHelper {
         
         // 构建通知
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // 使用系统图标，可替换为自定义图标
+            .setSmallIcon(R.mipmap.ic_launcher_round) // 使用系统 mipmap 图标作为 fallback
             .setContentTitle(title)
             .setContentText(content)
             .setPriority(NotificationCompat.PRIORITY_HIGH) // 高优先级
@@ -85,19 +102,8 @@ object NotificationHelper {
         // 发送通知
         val notificationManager = NotificationManagerCompat.from(context)
         
-        // 检查通知权限（Android 13+）
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ActivityCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                // 没有权限，无法发送通知
-                return
-            }
-        }
-        
         notificationManager.notify(memoId.hashCode(), notification)
+        Log.d(TAG, "showNotification: Notification posted with ID ${memoId.hashCode()}")
     }
     
     /**
