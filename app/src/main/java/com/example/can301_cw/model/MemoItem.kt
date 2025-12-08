@@ -155,7 +155,8 @@ data class ScheduleTask(
     val category: String,
     val suggestedActions: List<String>,
     var id: String = UUID.randomUUID().toString(),
-    var taskStatus: TaskStatus = TaskStatus.PENDING
+    var taskStatus: TaskStatus = TaskStatus.PENDING,
+    var reminderTime: Long? = null
 )
 
 /**

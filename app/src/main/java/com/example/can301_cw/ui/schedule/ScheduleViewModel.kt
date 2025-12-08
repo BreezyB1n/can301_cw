@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
+import com.example.can301_cw.notification.ReminderScheduler
 
 data class ScheduleUiState(
     val groupedTasks: Map<String, List<TaskWithMemoId>> = emptyMap(),
@@ -32,7 +33,10 @@ data class TaskWithMemoId(
     val displayDate: String = ""
 )
 
-class ScheduleViewModel(private val memoDao: MemoDao) : ViewModel() {
+class ScheduleViewModel(
+    private val memoDao: MemoDao,
+    private val reminderScheduler: ReminderScheduler
+) : ViewModel() {
 
     private val _forceRefresh = MutableStateFlow(0L)
     private val _showAllTasks = MutableStateFlow(false)
@@ -171,11 +175,51 @@ class ScheduleViewModel(private val memoDao: MemoDao) : ViewModel() {
         }
     }
 
-    class Factory(private val memoDao: MemoDao) : ViewModelProvider.Factory {
+    fun setTaskReminder(taskWrapper: TaskWithMemoId, timestamp: Long) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val memo = memoDao.getMemoById(taskWrapper.memoId).firstOrNull() ?: return@withContext
+                    val currentApiResponse = memo.apiResponse ?: return@withContext
+                    
+                    var hasChanges = false
+                    val updatedTasks = currentApiResponse.schedule.tasks.map {
+                        if (it.id == taskWrapper.task.id) {
+                            hasChanges = true
+                            it.copy(reminderTime = timestamp)
+                        } else {
+                            it
+                        }
+                    }
+
+                    if (hasChanges) {
+                        val updatedSchedule = currentApiResponse.schedule.copy(tasks = updatedTasks)
+                        val updatedApiResponse = currentApiResponse.copy(schedule = updatedSchedule)
+                        
+                        val updatedMemo = memo.copy(apiResponse = updatedApiResponse)
+                        memoDao.insertMemo(updatedMemo)
+                        
+                        // Schedule Notification
+                        reminderScheduler.scheduleTaskReminder(updatedMemo, taskWrapper.task.id, timestamp)
+
+                        // Force UI update
+                        _forceRefresh.value = System.currentTimeMillis()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    class Factory(
+        private val memoDao: MemoDao,
+        private val reminderScheduler: ReminderScheduler
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(ScheduleViewModel::class.java)) {
-                return ScheduleViewModel(memoDao) as T
+                return ScheduleViewModel(memoDao, reminderScheduler) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

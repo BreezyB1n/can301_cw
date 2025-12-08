@@ -68,6 +68,12 @@ import com.example.can301_cw.ui.detail.MemoDetailViewModel
 import com.example.can301_cw.ui.schedule.ScheduleScreen
 import com.example.can301_cw.ui.schedule.ScheduleViewModel
 
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
+
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
@@ -79,11 +85,38 @@ class MainActivity : ComponentActivity() {
 
     private val userRepository by lazy { UserRepository(database.userDao(), database.settingsDao()) }
 
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            android.widget.Toast.makeText(
+                this,
+                "Notification permission granted. Reminders will work normally.",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            android.widget.Toast.makeText(
+                this,
+                "Notification permission denied. You will not receive reminders.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private val pendingMemoId = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // 创建通知渠道
         NotificationHelper.createNotificationChannel(this)
+        
+        // Request Notification Permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         // Restore user session
         lifecycleScope.launch {
@@ -141,6 +174,14 @@ class MainActivity : ComponentActivity() {
 
             CAN301_CWTheme(appTheme = appTheme, customPrimaryColor = customColor, darkTheme = darkTheme) {
                 val navController = rememberNavController()
+
+                // Handle pending navigation from notification
+                LaunchedEffect(pendingMemoId.value) {
+                    pendingMemoId.value?.let { memoId ->
+                        navController.navigate("memo_detail/$memoId")
+                        pendingMemoId.value = null // Reset
+                    }
+                }
 
                 NavHost(navController = navController, startDestination = "main") {
 
@@ -281,7 +322,7 @@ class MainActivity : ComponentActivity() {
                     ) { backStackEntry ->
                         val memoId = backStackEntry.arguments?.getString("memoId") ?: return@composable
                         val viewModel: MemoDetailViewModel = viewModel(
-                            factory = MemoDetailViewModel.Factory(database.memoDao(), imageStorageManager, memoId)
+                            factory = MemoDetailViewModel.Factory(database.memoDao(), imageStorageManager, memoId, reminderScheduler)
                         )
                         MemoDetailScreen(
                             viewModel = viewModel,
@@ -381,7 +422,24 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
+        if (intent == null) return
+
+        // Handle Notification Click
+        if (intent.hasExtra("memo_id")) {
+            val memoId = intent.getStringExtra("memo_id")
+            if (memoId != null) {
+                // Wait for composition to be ready or handle navigation differently?
+                // Since this is Activity scope, we might not have access to navController immediately if app is starting cold.
+                // But `handleIntent` is called from `onCreate` (cold start) and `onNewIntent` (warm start).
+                // However, navController is created inside setContent.
+                // We should store this ID and handle it inside the Composable or use a specific Intent action.
+                
+                // Let's use a mutableState to trigger navigation inside MainScreen/NavHost
+                pendingMemoId.value = memoId
+            }
+        }
+
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
             @Suppress("DEPRECATION")
             (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)?.let { imageUri ->
                 try {
@@ -463,25 +521,8 @@ fun MainScreen(
                     val context = LocalContext.current
                     val application = context.applicationContext as Application
 
-                    // We can reuse the database.memoDao() since it is the same instance
-                    // But accessing database here requires passing it down or grabbing it via Context
-                    // (Since MainScreen is a Composable, we can't access MainActivity properties directly unless passed)
-                    // However, MainActivity properties like `database` are inside the Activity class.
-                    // Let's check if we can access it. The `MainScreen` call is inside `setContent` block which is inside `onCreate`, so it has access to `database`.
-                    // But `MainScreen` function itself is outside `MainActivity` class.
-                    // We should pass the DAO or ViewModel to MainScreen.
-
-                    // Since we didn't pass scheduleViewModel to MainScreen, we need to create it here.
-                    // But MainScreen doesn't have access to `database` property of MainActivity.
-                    // We need to use Factory pattern properly inside the Composable.
-
                     val scheduleViewModel: ScheduleViewModel = viewModel(
-                        factory = ScheduleViewModel.Factory(
-                            // We need a way to get Dao.
-                            // Option 1: Pass Dao to MainScreen
-                            // Option 2: Get DB from Context (AppDatabase.getDatabase(context))
-                            AppDatabase.getDatabase(context).memoDao()
-                        )
+                        factory = ScheduleViewModel.Factory(database.memoDao(), ReminderScheduler(context))
                     )
 
                     ScheduleScreen(

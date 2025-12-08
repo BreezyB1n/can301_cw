@@ -49,17 +49,20 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.can301_cw.ui.components.ReminderDialog
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ScheduleScreen(
     viewModel: ScheduleViewModel,
-    onMemoClick: (String) -> Unit
+    onMemoClick: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val showAllTasks by viewModel.showAllTasks.collectAsState()
 
     Scaffold(
+        modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
@@ -164,6 +167,7 @@ fun ScheduleScreen(
                                 shape = shape,
                                 onToggleStatus = { viewModel.toggleTaskStatus(taskWrapper) },
                                 onSetStatus = { status -> viewModel.setTaskStatus(taskWrapper, status) },
+                                onSetReminder = { timestamp -> viewModel.setTaskReminder(taskWrapper, timestamp) },
                                 onMemoClick = onMemoClick,
                                 showAllTasks = showAllTasks,
                                 modifier = Modifier.padding(bottom = bottomPadding).animateItem()
@@ -185,6 +189,7 @@ fun ScheduleCard(
     shape: RoundedCornerShape,
     onToggleStatus: () -> Unit,
     onSetStatus: (TaskStatus) -> Unit,
+    onSetReminder: (Long) -> Unit,
     onMemoClick: (String) -> Unit,
     showAllTasks: Boolean,
     modifier: Modifier = Modifier
@@ -197,6 +202,18 @@ fun ScheduleCard(
     var isVisible by remember { mutableStateOf(true) }
     var isLocallyCompleted by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.COMPLETED) }
     var isLocallyIgnored by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.IGNORED) }
+    
+    var showReminderDialog by remember { mutableStateOf(false) }
+
+    if (showReminderDialog) {
+        ReminderDialog(
+            onDismissRequest = { showReminderDialog = false },
+            onConfirm = { timestamp ->
+                onSetReminder(timestamp)
+                showReminderDialog = false
+            }
+        )
+    }
 
     // If it's already ignored/completed in DB, we don't show it (handled by parent list),
     // but if it becomes ignored/completed locally, we handle animation.
@@ -257,12 +274,25 @@ fun ScheduleCard(
                         val timePart = extractTime(task.startTime)
                         val shouldShowTime = shouldShowTime(task.startTime, timePart)
                         
-                        if (shouldShowTime) {
-                             Text(
-                                text = timePart,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Column {
+                            if (shouldShowTime) {
+                                Text(
+                                    text = timePart,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) {
+                                val dateFormat = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+                                val prefix = if (shouldShowTime) "· " else ""
+                                Text(
+                                    text = "${prefix}Remind at ${dateFormat.format(Date(task.reminderTime!!))}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                     
@@ -355,7 +385,7 @@ fun ScheduleCard(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Button(
-                                onClick = { /* TODO: Implement Reminder Logic */ },
+                                onClick = { showReminderDialog = true },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                                 shape = RoundedCornerShape(15.dp),
@@ -363,7 +393,7 @@ fun ScheduleCard(
                             ) {
                                 Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Set Reminder", style = MaterialTheme.typography.labelMedium)
+                                Text(if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) "Update Reminder" else "Set Reminder", style = MaterialTheme.typography.labelMedium)
                             }
 
                             Button(
@@ -456,4 +486,3 @@ fun CircularCheckbox(
         )
     }
 }
-
