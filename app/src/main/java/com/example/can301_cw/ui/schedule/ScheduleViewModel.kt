@@ -47,6 +47,9 @@ class ScheduleViewModel(private val memoDao: MemoDao) : ViewModel() {
             memos.forEach { memo ->
                 val memoDate = dateFormatter.format(memo.createdAt)
                 memo.apiResponse?.schedule?.tasks?.forEach { task ->
+                    // Filter: Only show PENDING tasks
+                    if (task.taskStatus != TaskStatus.PENDING) return@forEach
+
                     // Use memo creation date if task date cannot be determined
                     val taskDate = extractDate(task.startTime)
                     val finalDate = if (isValidDate(taskDate)) taskDate else memoDate

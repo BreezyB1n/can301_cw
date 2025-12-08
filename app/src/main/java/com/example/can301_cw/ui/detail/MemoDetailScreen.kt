@@ -42,6 +42,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -70,7 +76,9 @@ fun MemoDetailScreen(
             imageData = item.imageData,
             isAiProcessing = isAiProcessing,
             originalTitle = item.title,
-            tags = item.tags
+            tags = item.tags,
+            onToggleTaskStatus = viewModel::toggleTaskStatus,
+            onSetTaskStatus = viewModel::setTaskStatus
         )
     }
 }
@@ -112,7 +120,9 @@ fun MemoDetailContent(
     imageData: ByteArray? = null,
     isAiProcessing: Boolean = false,
     originalTitle: String = "",
-    tags: List<String> = emptyList()
+    tags: List<String> = emptyList(),
+    onToggleTaskStatus: (String) -> Unit = {},
+    onSetTaskStatus: (String, TaskStatus) -> Unit = { _, _ -> }
 ) {
     val scrollState = rememberScrollState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -244,7 +254,11 @@ fun MemoDetailContent(
             ) { page ->
                 when (page) {
                     0 -> InformationTabContent(data.information)
-                    1 -> ScheduleTabContent(data.schedule)
+                    1 -> ScheduleTabContent(
+                        schedule = data.schedule,
+                        onToggleTaskStatus = onToggleTaskStatus,
+                        onSetTaskStatus = onSetTaskStatus
+                    )
                 }
             }
         }
@@ -407,161 +421,203 @@ fun CircularCheckbox(
 }
 
 @Composable
-fun ScheduleTabContent(schedule: Schedule) {
+fun ScheduleTabContent(
+    schedule: Schedule,
+    onToggleTaskStatus: (String) -> Unit,
+    onSetTaskStatus: (String, TaskStatus) -> Unit
+) {
+    val pendingTasks = schedule.tasks.filter { it.taskStatus == TaskStatus.PENDING }
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (schedule.tasks.isEmpty()) {
-            Text("No scheduled tasks.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        if (pendingTasks.isEmpty()) {
+            Text("No pending tasks.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
         } else {
-            schedule.tasks.forEach { task ->
-                ScheduleTaskCard(task)
+            pendingTasks.forEach { task ->
+                ScheduleTaskCard(
+                    task = task,
+                    onToggleTaskStatus = onToggleTaskStatus,
+                    onSetTaskStatus = onSetTaskStatus
+                )
             }
         }
     }
 }
 
 @Composable
-fun ScheduleTaskCard(task: ScheduleTask) {
-    var isCompleted by remember { mutableStateOf(false) }
+fun ScheduleTaskCard(
+    task: ScheduleTask,
+    onToggleTaskStatus: (String) -> Unit,
+    onSetTaskStatus: (String, TaskStatus) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var isVisible by remember { mutableStateOf(true) }
+    
+    // UI states for delayed interaction
+    var isLocallyCompleted by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.COMPLETED) }
+    var isLocallyIgnored by remember(task.taskStatus) { mutableStateOf(task.taskStatus == TaskStatus.IGNORED) }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth()
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = expandVertically() + fadeIn(),
+        exit = shrinkVertically() + fadeOut()
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Header: Title and Status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Circular Checkbox
-                CircularCheckbox(
-                    checked = isCompleted,
-                    onCheckedChange = { isCompleted = !isCompleted }
-                )
-                
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = task.theme.ifEmpty { "Task" },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                        color = if (isCompleted) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
+                // Header: Title and Status
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Circular Checkbox
+                    CircularCheckbox(
+                        checked = isLocallyCompleted,
+                        onCheckedChange = { 
+                             isLocallyCompleted = !isLocallyCompleted
+                             if (isLocallyCompleted) {
+                                 coroutineScope.launch {
+                                     delay(2000)
+                                     isVisible = false
+                                     delay(500)
+                                     onToggleTaskStatus(task.id)
+                                 }
+                             }
+                        }
                     )
                     
-                    // Time
-                    if (task.startTime.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = task.startTime,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = task.theme.ifEmpty { "Task" },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            textDecoration = if (isLocallyCompleted || isLocallyIgnored) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                            color = if (isLocallyCompleted || isLocallyIgnored) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
                         )
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            )
-
-            // Core Tasks
-            if (task.coreTasks.isNotEmpty()) {
-                Text(
-                    text = "Core Tasks:",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    task.coreTasks.forEach { coreTask ->
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(
-                                imageVector = Icons.Outlined.CheckCircle,
-                                contentDescription = null,
-                                tint = Color(0xFF4CAF50),
-                                modifier = Modifier.size(20.dp).padding(top = 2.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                        
+                        // Time
+                        if (task.startTime.isNotEmpty()) {
                             Text(
-                                text = coreTask,
-                                style = MaterialTheme.typography.bodyMedium
+                                text = task.startTime,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
-            }
 
-            // Suggested Actions
-            if (task.suggestedActions.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Suggested Actions:",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    task.suggestedActions.forEach { action ->
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(
-                                imageVector = Icons.Outlined.Lightbulb,
-                                contentDescription = null,
-                                tint = Color(0xFFFFC107),
-                                modifier = Modifier.size(20.dp).padding(top = 2.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = action,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+
+                // Core Tasks
+                if (task.coreTasks.isNotEmpty()) {
+                    Text(
+                        text = "Core Tasks:",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        task.coreTasks.forEach { coreTask ->
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = coreTask,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
                     }
                 }
-            }
-            
-            // Footer Actions
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = { /* Add Reminder */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(15.dp),
-                    modifier = Modifier.height(30.dp)
-                ) {
-                    Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Set Reminder", style = MaterialTheme.typography.labelMedium)
+
+                // Suggested Actions
+                if (task.suggestedActions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Suggested Actions:",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        task.suggestedActions.forEach { action ->
+                            Row(verticalAlignment = Alignment.Top) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Lightbulb,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFC107),
+                                    modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = action,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Button(
-                    onClick = { /* Delete */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(15.dp),
-                    modifier = Modifier.height(30.dp)
+                // Action Buttons
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Ignore", tint = Color.White, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
+                    Button(
+                        onClick = { /* TODO: Implement Reminder Logic */ },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(15.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Set Reminder", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    Button(
+                        onClick = { 
+                            isLocallyIgnored = true
+                            coroutineScope.launch {
+                                delay(2000)
+                                isVisible = false
+                                delay(500)
+                                onSetTaskStatus(task.id, TaskStatus.IGNORED) 
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(15.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
+                    }
                 }
             }
         }

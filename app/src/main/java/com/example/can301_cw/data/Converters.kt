@@ -35,7 +35,28 @@ class Converters {
     fun fromApiResponse(value: String?): ApiResponse? {
         if (value == null) return null
         val type = object : TypeToken<ApiResponse>() {}.type
-        return gson.fromJson(value, type)
+        val response: ApiResponse? = gson.fromJson(value, type)
+        
+        // Fix for existing data where taskStatus might be missing (null due to Gson unsafe allocation)
+        response?.schedule?.tasks?.forEach { task ->
+            // Use reflection or unsafe check to see if it's null, or just reassignment if it appears null
+            // In Kotlin, accessing a null field typed as non-null might not throw immediately on Android/JVM
+            // but effectively we want to ensure it's PENDING.
+            @Suppress("SENSELESS_COMPARISON")
+            if (task.taskStatus == null) {
+                task.taskStatus = com.example.can301_cw.model.TaskStatus.PENDING
+            }
+
+            @Suppress("SENSELESS_COMPARISON")
+            if (task.id == null) {
+                // Generate deterministic ID based on content to ensure consistency across reads
+                // until the object is saved back to DB with the ID.
+                // Using startTime, theme and category as seed.
+                val uniqueString = "${task.startTime}-${task.theme}-${task.category}"
+                task.id = java.util.UUID.nameUUIDFromBytes(uniqueString.toByteArray()).toString()
+            }
+        }
+        return response
     }
 
     @TypeConverter

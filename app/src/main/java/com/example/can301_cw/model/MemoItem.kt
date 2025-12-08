@@ -154,7 +154,7 @@ data class ScheduleTask(
     val tags: List<String>,
     val category: String,
     val suggestedActions: List<String>,
-    val id: String = UUID.randomUUID().toString(),
+    var id: String = UUID.randomUUID().toString(),
     var taskStatus: TaskStatus = TaskStatus.PENDING
 )
 
