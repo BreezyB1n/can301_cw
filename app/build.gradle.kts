@@ -62,8 +62,8 @@ dependencies {
     
     // 补充缺失的依赖
     implementation("io.coil-kt:coil-compose:2.6.0")
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
-    implementation("com.google.mlkit:text-recognition-chinese:16.0.0")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
     // 确保包含扩展图标库
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
     
