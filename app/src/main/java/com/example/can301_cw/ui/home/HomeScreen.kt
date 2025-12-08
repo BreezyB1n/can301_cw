@@ -27,6 +27,13 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,32 +45,46 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.lazy.rememberLazyListState
 import android.graphics.BitmapFactory
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(
@@ -77,7 +98,8 @@ fun HomeScreen(
         memoItems = memoItems,
         modifier = modifier.fillMaxSize(),
         onAddMemoClick = onAddMemoClick,
-        onMemoClick = onMemoClick
+        onMemoClick = onMemoClick,
+        onDeleteMemo = viewModel::deleteMemo
     )
 }
 
@@ -87,9 +109,43 @@ fun HomeScreenContent(
     memoItems: List<MemoItem>,
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit = {},
-    onMemoClick: (String) -> Unit = {}
+    onMemoClick: (String) -> Unit = {},
+    onDeleteMemo: (String) -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var memoToDelete by remember { mutableStateOf<MemoItem?>(null) }
+    var revealedMemoId by remember { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress && revealedMemoId != null) {
+            revealedMemoId = null
+        }
+    }
+
+    if (showDeleteDialog && memoToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("确认删除") },
+            text = { Text("确定要删除这条便签吗？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteMemo(memoToDelete!!.id)
+                    showDeleteDialog = false
+                    memoToDelete = null
+                    revealedMemoId = null
+                }) {
+                    Text("删除", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
 
     val memoGroups = memoItems.groupBy {
         SimpleDateFormat("MMMM dd", Locale.ENGLISH).format(it.createdAt)
@@ -97,7 +153,16 @@ fun HomeScreenContent(
 
     Scaffold(
         modifier = modifier
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        if (revealedMemoId != null) {
+                            revealedMemoId = null
+                        }
+                    }
+                )
+            },
         topBar = {
             MediumTopAppBar(
                 title = {
@@ -168,6 +233,7 @@ fun HomeScreenContent(
         }
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background), // Use theme background
@@ -191,10 +257,116 @@ fun HomeScreenContent(
                 item {
                     DateHeader(date)
                 }
-                items(items) { memo ->
-                    MemoCard(memo, onClick = onMemoClick)
+                items(items, key = { it.id }) { memo ->
+                    SwipeBox(
+                        isRevealed = revealedMemoId == memo.id,
+                        onExpand = { revealedMemoId = memo.id },
+                        onCollapse = {
+                            if (revealedMemoId == memo.id) {
+                                revealedMemoId = null
+                            }
+                        },
+                        backgroundContent = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 33.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Red,
+                                    modifier = Modifier.size(50.dp),
+                                    onClick = {
+                                         memoToDelete = memo
+                                         showDeleteDialog = true
+                                    }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Delete,
+                                            contentDescription = "Delete",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        content = {
+                            MemoCard(
+                                item = memo,
+                                onClick = { id ->
+                                    if (revealedMemoId != null) {
+                                        revealedMemoId = null
+                                    } else {
+                                        onMemoClick(id)
+                                    }
+                                }
+                            )
+                        }
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SwipeBox(
+    isRevealed: Boolean,
+    onExpand: () -> Unit,
+    onCollapse: () -> Unit,
+    backgroundContent: @Composable () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val density = LocalDensity.current
+    val revealSize = 100.dp // Width to reveal
+    val revealPx = with(density) { revealSize.toPx() }
+    
+    val offsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(isRevealed) {
+        if (isRevealed) {
+            offsetX.animateTo(-revealPx)
+        } else {
+            offsetX.animateTo(0f)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .draggable(
+                state = rememberDraggableState { delta ->
+                    scope.launch {
+                        val target = (offsetX.value + delta).coerceIn(-revealPx, 0f)
+                        offsetX.snapTo(target)
+                    }
+                },
+                orientation = Orientation.Horizontal,
+                onDragStopped = { velocity ->
+                    if (offsetX.value < -revealPx / 2 || velocity < -1000) {
+                        onExpand()
+                    } else {
+                        onCollapse()
+                    }
+                }
+            )
+    ) {
+        // Background
+        Box(
+            modifier = Modifier.matchParentSize()
+        ) {
+            backgroundContent()
+        }
+
+        // Foreground
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+        ) {
+            content()
         }
     }
 }
@@ -314,72 +486,74 @@ fun MemoCard(item: MemoItem, onClick: (String) -> Unit = {}) {
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            if (hasImage) {
-                if (isPortrait) {
-                    // Horizontal Layout (Image Left, Content Right)
-                    
-                    // Calculate estimated max lines based on image height
-                    // Image width is 120.dp, aspect ratio is constrained between 0.5 and 1.0
-                    val displayedRatio = imageAspectRatio.coerceIn(0.5f, 1.0f)
-                    // Image height in dp = 120 / ratio
-                    val estimatedImageHeight = 120f / displayedRatio
+        Box {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                if (hasImage) {
+                    if (isPortrait) {
+                        // Horizontal Layout (Image Left, Content Right)
+                        
+                        // Calculate estimated max lines based on image height
+                        // Image width is 120.dp, aspect ratio is constrained between 0.5 and 1.0
+                        val displayedRatio = imageAspectRatio.coerceIn(0.5f, 1.0f)
+                        // Image height in dp = 120 / ratio
+                        val estimatedImageHeight = 120f / displayedRatio
 
-                    // Estimate Title Height
-                    // Title width is roughly (Screen - 120 - 32 - 16). Assuming 360dp screen -> 192dp available.
-                    // titleMedium bold ~ 9-10dp per char?
-                    // Let's assume 18 chars per line conservatively.
-                    val estimatedTitleLines = (item.title.length / 18) + 1
-                    // Title line height ~ 24dp (22sp + padding), plus 8dp spacing below title
-                    val estimatedTitleHeight = estimatedTitleLines * 24 + 8
+                        // Estimate Title Height
+                        // Title width is roughly (Screen - 120 - 32 - 16). Assuming 360dp screen -> 192dp available.
+                        // titleMedium bold ~ 9-10dp per char?
+                        // Let's assume 18 chars per line conservatively.
+                        val estimatedTitleLines = (item.title.length / 18) + 1
+                        // Title line height ~ 24dp (22sp + padding), plus 8dp spacing below title
+                        val estimatedTitleHeight = estimatedTitleLines * 24 + 8
 
-                    // Estimate Body Lines
-                    // (ImageHeight - TitleHeight) / BodyLineHeight
-                    // Body line height ~ 22dp (20sp + spacing)
-                    val availableHeight = estimatedImageHeight - estimatedTitleHeight
-                    val calculatedMaxLines = max(3, (availableHeight / 22).toInt())
-                    
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        // Image
+                        // Estimate Body Lines
+                        // (ImageHeight - TitleHeight) / BodyLineHeight
+                        // Body line height ~ 22dp (20sp + spacing)
+                        val availableHeight = estimatedImageHeight - estimatedTitleHeight
+                        val calculatedMaxLines = max(3, (availableHeight / 22).toInt())
+                        
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            // Image
+                            MemoImage(
+                                imageData = item.imageData,
+                                modifier = Modifier
+                                    .width(120.dp)
+                                    .aspectRatio(imageAspectRatio.coerceIn(0.5f, 1.0f)) // Constrain aspect ratio for list view
+                                    .clip(RoundedCornerShape(12.dp))
+                            )
+                            
+                            // Content
+                            Column(modifier = Modifier.weight(1f)) {
+                                MemoTextContent(item, maxLines = calculatedMaxLines)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        MemoBottomInfo(item)
+                    } else {
+                        // Vertical Layout (Image Top, Content Bottom)
                         MemoImage(
                             imageData = item.imageData,
                             modifier = Modifier
-                                .width(120.dp)
-                                .aspectRatio(imageAspectRatio.coerceIn(0.5f, 1.0f)) // Constrain aspect ratio for list view
+                                .fillMaxWidth()
+                                .aspectRatio(imageAspectRatio.coerceIn(1.0f, 2.0f)) // Constrain aspect ratio
                                 .clip(RoundedCornerShape(12.dp))
                         )
-                        
-                        // Content
-                        Column(modifier = Modifier.weight(1f)) {
-                            MemoTextContent(item, maxLines = calculatedMaxLines)
-                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        MemoTextContent(item)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        MemoBottomInfo(item)
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    MemoBottomInfo(item)
                 } else {
-                    // Vertical Layout (Image Top, Content Bottom)
-                    MemoImage(
-                        imageData = item.imageData,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(imageAspectRatio.coerceIn(1.0f, 2.0f)) // Constrain aspect ratio
-                            .clip(RoundedCornerShape(12.dp))
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    // Text Only Layout
                     MemoTextContent(item)
                     Spacer(modifier = Modifier.height(12.dp))
                     MemoBottomInfo(item)
                 }
-            } else {
-                // Text Only Layout
-                MemoTextContent(item)
-                Spacer(modifier = Modifier.height(12.dp))
-                MemoBottomInfo(item)
             }
         }
     }
