@@ -58,6 +58,12 @@ class HomeViewModel(
         }
     }
 
+    fun deleteMemo(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            memoDao.deleteMemoById(id)
+        }
+    }
+
     private fun processImageWithAI(item: MemoItem) {
         viewModelScope.launch(Dispatchers.IO) {
             try {

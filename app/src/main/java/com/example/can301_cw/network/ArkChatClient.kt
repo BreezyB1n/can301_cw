@@ -149,7 +149,7 @@ object ArkChatClient {
         val textPrompt = JsonObject().apply {
             add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
             addProperty("isimage", if (isImage) 1 else 0)
-            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields, reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags.")
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields. STRICTLY reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags. For 'startTime', use the format 'yyyy-MM-dd HH:mm'. If no specific time (HH:mm) is identified, use 'yyyy-MM-dd'. If the date cannot be determined, return 'Today'.")
             add("schema", schemaObj)
         }.toString()
 
@@ -218,7 +218,7 @@ object ArkChatClient {
                 // 解析 content 内部的 JSON
                 val contentJson = JsonParser.parseString(contentStr).asJsonObject
                 
-                // 处理 schedule.tasks 中的 tags
+                // 处理 schedule.tasks 中的 tags 和 taskStatus
                 if (contentJson.has("schedule")) {
                     val schedule = contentJson.getAsJsonObject("schedule")
                     if (schedule.has("tasks")) {
@@ -230,6 +230,14 @@ object ArkChatClient {
                                 while (tags.size() > 6) {
                                     tags.remove(tags.size() - 1)
                                 }
+                            }
+                            // 强制设置默认状态为 PENDING，以防 API 未返回
+                            if (!taskObj.has("taskStatus")) {
+                                taskObj.addProperty("taskStatus", "PENDING")
+                            }
+                            // 确保有 ID
+                            if (!taskObj.has("id")) {
+                                taskObj.addProperty("id", java.util.UUID.randomUUID().toString())
                             }
                         }
                     }

@@ -484,7 +484,10 @@ fun MainScreen(
                         )
                     )
 
-                    ScheduleScreen(viewModel = scheduleViewModel)
+                    ScheduleScreen(
+                        viewModel = scheduleViewModel,
+                        onMemoClick = onMemoClick
+                    )
                 }
                 2 -> CategoryScreen(
                     memoDao = database.memoDao(),

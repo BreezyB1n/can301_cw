@@ -28,7 +28,8 @@ data class ScheduleUiState(
 data class TaskWithMemoId(
     val task: ScheduleTask,
     val memoId: String,
-    val memoTitle: String
+    val memoTitle: String,
+    val displayDate: String = ""
 )
 
 class ScheduleViewModel(private val memoDao: MemoDao) : ViewModel() {
@@ -41,28 +42,32 @@ class ScheduleViewModel(private val memoDao: MemoDao) : ViewModel() {
         _forceRefresh
     ) { memos, _ ->
             val allTasks = mutableListOf<TaskWithMemoId>()
+            val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
             memos.forEach { memo ->
+                val memoDate = dateFormatter.format(memo.createdAt)
                 memo.apiResponse?.schedule?.tasks?.forEach { task ->
-                    // Only show tasks that are not ignored (optional, based on requirement)
-                    // For now we show all, maybe sort ignored to bottom?
-                    allTasks.add(TaskWithMemoId(task, memo.id, memo.title))
+                    // Filter: Only show PENDING tasks
+                    if (task.taskStatus != TaskStatus.PENDING) return@forEach
+
+                    // Use memo creation date if task date cannot be determined
+                    val taskDate = extractDate(task.startTime)
+                    val finalDate = if (isValidDate(taskDate)) taskDate else memoDate
+                    
+                    allTasks.add(TaskWithMemoId(
+                        task = task,
+                        memoId = memo.id,
+                        memoTitle = memo.title,
+                        displayDate = finalDate
+                    ))
                 }
             }
 
-            // Sort by start time
-            // Assuming startTime is "YYYY-MM-DD HH:mm" or similar standard format.
-            // If it's natural language, parsing might be tricky without normalization.
-            // Here we do a simple string sort which works for ISO formats.
-            allTasks.sortBy { it.task.startTime }
-
             // Group by Date
-            // We'll try to extract the date part from startTime string
-            val grouped = allTasks.groupBy { taskWrapper ->
-                extractDate(taskWrapper.task.startTime)
-            }
-            // Sort groups by date key (descending or ascending?) - usually ascending for schedule
-            val sortedGrouped = grouped.toSortedMap()
+            val grouped = allTasks.groupBy { it.displayDate }
+            
+            // Sort groups by date key descending (newest first)
+            val sortedGrouped = grouped.toSortedMap(compareByDescending { it })
 
             ScheduleUiState(groupedTasks = sortedGrouped)
         }
@@ -73,11 +78,17 @@ class ScheduleViewModel(private val memoDao: MemoDao) : ViewModel() {
         )
 
     private fun extractDate(startTime: String): String {
-        if (startTime.isBlank()) return "Undated"
+        if (startTime.isBlank() || startTime.equals("Today", ignoreCase = true)) return ""
         // Handle "2025-12-12 10:00" or "2025-12-12T10:00"
         val delimiters = charArrayOf(' ', 'T')
-        return startTime.split(*delimiters)[0]
+        val datePart = startTime.split(*delimiters)[0]
+        return if (datePart.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) datePart else ""
     }
+
+    private fun isValidDate(dateStr: String): Boolean {
+        return dateStr.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))
+    }
+
 
     fun toggleTaskStatus(taskWrapper: TaskWithMemoId) {
         viewModelScope.launch {
