@@ -127,8 +127,8 @@ fun HomeScreenContent(
     if (showDeleteDialog && memoToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("确认删除") },
-            text = { Text("确定要删除这条便签吗？") },
+            title = { Text("Confirm Delete") },
+            text = { Text("Are you sure you want to delete this memo?") },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteMemo(memoToDelete!!.id)
@@ -136,12 +136,12 @@ fun HomeScreenContent(
                     memoToDelete = null
                     revealedMemoId = null
                 }) {
-                    Text("删除", color = Color.Red)
+                    Text("Delete", color = Color.Red)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("取消")
+                    Text("Cancel")
                 }
             }
         )

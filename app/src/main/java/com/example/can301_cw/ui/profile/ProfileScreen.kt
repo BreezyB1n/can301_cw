@@ -167,8 +167,8 @@ fun ProfileScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear History", style = MaterialTheme.typography.headlineSmall) },
-            text = { Text("Are you sure you want to delete all tasks? This action cannot be undone.", style = MaterialTheme.typography.bodyMedium) },
+            title = { Text("Clear All Memos", style = MaterialTheme.typography.headlineSmall) },
+            text = { Text("Are you sure you want to delete all memos? This action cannot be undone.", style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -312,7 +312,7 @@ fun ProfileScreen(
                             )
                         ) {
                             SettingsListTile(
-                                title = "Clear All History",
+                                title = "Clear All Memos",
                                 icon = Icons.Outlined.Delete,
                                 iconTint = MaterialTheme.colorScheme.onError,
                                 textColor = MaterialTheme.colorScheme.onError,
