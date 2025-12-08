@@ -128,7 +128,7 @@ private enum class ProfileDestination {
     Main,
     Appearance,
     Notifications,
-    Integrations,
+    // Integrations,
     AIConfiguration,
     AccountDetails,
     ChangePassword
@@ -289,12 +289,12 @@ fun ProfileScreen(
                                     onClick = { destination = ProfileDestination.Notifications }
                                 )
                                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                                SettingsListTile(
-                                    title = "Integrations",
-                                    icon = Icons.Outlined.DateRange,
-                                    onClick = { destination = ProfileDestination.Integrations }
-                                )
-                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+//                                SettingsListTile(
+//                                    title = "Integrations",
+//                                    icon = Icons.Outlined.DateRange,
+//                                    onClick = { destination = ProfileDestination.Integrations }
+//                                )
+//                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                                 SettingsListTile(
                                     title = "AI Configuration",
                                     icon = Icons.Outlined.Settings,
@@ -347,9 +347,11 @@ fun ProfileScreen(
                     currentTheme = uiState.currentTheme,
                     customThemeColor = uiState.customThemeColor,
                     darkModeConfig = uiState.darkModeConfig,
+                    showTabLabels = uiState.showTabLabels,
                     onThemeSelected = { viewModel.setTheme(it) },
                     onCustomizeColorClick = { showColorPickerDialog = true },
                     onDarkModeConfigSelected = { viewModel.setDarkModeConfig(it) },
+                    onShowTabLabelsChange = { viewModel.setShowTabLabels(it) },
                     onBackClick = { destination = ProfileDestination.Main }
                 )
             }
@@ -358,17 +360,17 @@ fun ProfileScreen(
                     notificationsEnabled = uiState.notificationsEnabled,
                     defaultRemindOffset = uiState.defaultRemindOffset,
                     onNotificationsEnabledChange = { viewModel.setNotificationsEnabled(it) },
-                    onEditReminderClick = { /* TODO */ },
+                    onUpdateDefaultRemindOffset = { viewModel.updateDefaultRemindOffset(it) },
                     onBackClick = { destination = ProfileDestination.Main }
                 )
             }
-            ProfileDestination.Integrations -> {
-                IntegrationScreen(
-                    isCalendarSyncEnabled = uiState.isCalendarSyncEnabled,
-                    onCalendarSyncEnabledChange = { viewModel.setCalendarSyncEnabled(it) },
-                    onBackClick = { destination = ProfileDestination.Main }
-                )
-            }
+//            ProfileDestination.Integrations -> {
+//                IntegrationScreen(
+//                    isCalendarSyncEnabled = uiState.isCalendarSyncEnabled,
+//                    onCalendarSyncEnabledChange = { viewModel.setCalendarSyncEnabled(it) },
+//                    onBackClick = { destination = ProfileDestination.Main }
+//                )
+//            }
             ProfileDestination.AIConfiguration -> {
                 AIConfigurationScreen(
                     initialEndpoint = uiState.aiEndpoint,
@@ -656,8 +658,8 @@ fun AccountDetailsScreen(
             // Info Cards
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
                 Column {
                     ListItem(
@@ -668,7 +670,7 @@ fun AccountDetailsScreen(
                         modifier = Modifier.clickable { showEditUsernameDialog = true },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
-                    HorizontalDivider()
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     ListItem(
                         headlineContent = { Text("Email") },
                         supportingContent = { Text(user?.email ?: "") },
@@ -680,8 +682,8 @@ fun AccountDetailsScreen(
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
                 ListItem(
                     headlineContent = { Text("Change Password") },
@@ -694,12 +696,21 @@ fun AccountDetailsScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
-                onClick = onLogout,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                modifier = Modifier.fillMaxWidth()
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                )
             ) {
-                Text("Log Out")
+                SettingsListTile(
+                    title = "Log Out",
+                    icon = Icons.Outlined.Delete, // Or use a logout icon if available, but consistent with Delete for now or standard Logout
+                    iconTint = MaterialTheme.colorScheme.onError,
+                    textColor = MaterialTheme.colorScheme.onError,
+                    onClick = onLogout,
+                    showArrow = false
+                )
             }
         }
     }
@@ -829,9 +840,9 @@ fun StatisticsCard(stats: UserStats) {
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            StatItem(label = "Info Saved", value = stats.savedInformation)
-            StatItem(label = "Pending", value = stats.pendingTasks)
-            StatItem(label = "Completed", value = stats.completedTasks)
+            StatItem(label = "Memo Saved", value = stats.memoSaved)
+            StatItem(label = "Intents Saved", value = stats.intentsSaved)
+            StatItem(label = "Intents Comp.", value = stats.intentsCompleted)
         }
     }
 }
@@ -848,7 +859,8 @@ fun StatItem(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
         )
     }
 }

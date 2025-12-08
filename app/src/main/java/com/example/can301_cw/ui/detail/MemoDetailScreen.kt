@@ -63,6 +63,7 @@ fun MemoDetailScreen(
     onBackClick: () -> Unit = {}
 ) {
     val memoItem by viewModel.memoItem.collectAsState()
+    val defaultRemindOffset by viewModel.defaultRemindOffset.collectAsState()
 
     if (memoItem == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -82,6 +83,7 @@ fun MemoDetailScreen(
             isAiProcessing = isAiProcessing,
             originalTitle = item.title,
             tags = item.tags,
+            defaultRemindOffset = defaultRemindOffset,
             onToggleTaskStatus = viewModel::toggleTaskStatus,
             onSetTaskStatus = viewModel::setTaskStatus,
             onSetTaskReminder = viewModel::setTaskReminder
@@ -127,6 +129,7 @@ fun MemoDetailContent(
     isAiProcessing: Boolean = false,
     originalTitle: String = "",
     tags: List<String> = emptyList(),
+    defaultRemindOffset: Int = 5,
     onToggleTaskStatus: (String) -> Unit = {},
     onSetTaskStatus: (String, TaskStatus) -> Unit = { _, _ -> },
     onSetTaskReminder: (String, Long) -> Unit = { _, _ -> }
@@ -263,6 +266,7 @@ fun MemoDetailContent(
                     0 -> InformationTabContent(data.information)
                     1 -> ScheduleTabContent(
                         schedule = data.schedule,
+                        defaultRemindOffset = defaultRemindOffset,
                         onToggleTaskStatus = onToggleTaskStatus,
                         onSetTaskStatus = onSetTaskStatus,
                         onSetTaskReminder = onSetTaskReminder
@@ -431,6 +435,7 @@ fun CircularCheckbox(
 @Composable
 fun ScheduleTabContent(
     schedule: Schedule,
+    defaultRemindOffset: Int,
     onToggleTaskStatus: (String) -> Unit,
     onSetTaskStatus: (String, TaskStatus) -> Unit,
     onSetTaskReminder: (String, Long) -> Unit
@@ -496,6 +501,7 @@ fun ScheduleTabContent(
             ) {
                 ScheduleTaskCard(
                     task = task,
+                    defaultRemindOffset = defaultRemindOffset,
                     onToggleTaskStatus = onToggleTaskStatus,
                     onSetTaskStatus = onSetTaskStatus,
                     onSetTaskReminder = onSetTaskReminder,
@@ -509,6 +515,7 @@ fun ScheduleTabContent(
 @Composable
 fun ScheduleTaskCard(
     task: ScheduleTask,
+    defaultRemindOffset: Int,
     onToggleTaskStatus: (String) -> Unit,
     onSetTaskStatus: (String, TaskStatus) -> Unit,
     onSetTaskReminder: (String, Long) -> Unit,
@@ -525,6 +532,7 @@ fun ScheduleTaskCard(
 
     if (showReminderDialog) {
         ReminderDialog(
+            defaultOffsetMinutes = defaultRemindOffset,
             onDismissRequest = { showReminderDialog = false },
             onConfirm = { timestamp ->
                 onSetTaskReminder(task.id, timestamp)

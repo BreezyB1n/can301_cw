@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.MemoDao
+import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.network.ArkChatClient
 import com.example.can301_cw.model.ApiResponse
@@ -15,12 +16,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
 
 class HomeViewModel(
     private val memoDao: MemoDao,
-    private val imageStorageManager: ImageStorageManager
+    private val imageStorageManager: ImageStorageManager,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     
     val memoItems: StateFlow<List<MemoItem>> = memoDao.getAllMemos()
@@ -74,10 +77,12 @@ class HomeViewModel(
                 val base64Image = android.util.Base64.encodeToString(compressedImageData, android.util.Base64.NO_WRAP)
 
                 // 3. Call API
+                val apiKey = settingsRepository.aiApiKey.first()
                 val result = ArkChatClient.chatWithImageUrl(
                     tags = emptyList(),
                     content = base64Image,
-                    isImage = true
+                    isImage = true,
+                    apiKey = apiKey
                 )
 
                 result.onSuccess { jsonString ->
@@ -149,12 +154,13 @@ class HomeViewModel(
 
     class Factory(
         private val memoDao: MemoDao,
-        private val imageStorageManager: ImageStorageManager
+        private val imageStorageManager: ImageStorageManager,
+        private val settingsRepository: SettingsRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
-                return HomeViewModel(memoDao, imageStorageManager) as T
+                return HomeViewModel(memoDao, imageStorageManager, settingsRepository) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

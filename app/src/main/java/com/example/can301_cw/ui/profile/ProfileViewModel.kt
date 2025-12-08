@@ -8,6 +8,8 @@ import com.example.can301_cw.data.AppDatabase
 import com.example.can301_cw.data.MemoDao
 import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.data.UserRepository
+import com.example.can301_cw.model.MemoItem
+import com.example.can301_cw.model.TaskStatus
 import com.example.can301_cw.model.User
 import com.example.can301_cw.model.UserStats
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +32,7 @@ data class ProfileUiState(
     val darkModeConfig: DarkModeConfig = DarkModeConfig.FOLLOW_SYSTEM,
     val currentTheme: AppTheme = AppTheme.Blue,
     val customThemeColor: Long = 0L, // Store as ARGB Long
+    val showTabLabels: Boolean = false,
     val notificationsEnabled: Boolean = true,
     val defaultRemindOffset: Int = 30,
     val isCalendarSyncEnabled: Boolean = false,
@@ -53,6 +56,7 @@ class ProfileViewModel(
         settingsRepository.themeColor,
         settingsRepository.darkModeConfig,
         settingsRepository.customThemeColor,
+        settingsRepository.showTabLabels,
         userRepository.currentUser
     ) { args: Array<Any?> ->
         val darkMode = args[0] as Boolean
@@ -65,7 +69,23 @@ class ProfileViewModel(
         val themeColorName = args[7] as String
         val darkModeConfigName = args[8] as String
         val customThemeColorValue = args[9] as Long
-        val currentUser = args[10] as? User
+        val showTabLabels = args[10] as Boolean
+        val currentUser = args[11] as? User
+        
+        val memoList = memos as List<MemoItem>
+        val memoSavedCount = memoList.size
+
+        var intentsSavedCount = 0
+        var intentsCompletedCount = 0
+
+        memoList.forEach { memo ->
+            memo.apiResponse?.schedule?.tasks?.forEach { task ->
+                intentsSavedCount++
+                if (task.taskStatus == TaskStatus.COMPLETED) {
+                    intentsCompletedCount++
+                }
+            }
+        }
         
         val currentTheme = try {
             AppTheme.valueOf(themeColorName)
@@ -82,14 +102,15 @@ class ProfileViewModel(
         ProfileUiState(
             user = currentUser,
             stats = UserStats(
-                pendingTasks = memos.size.toString(),
-                completedTasks = "0",
-                savedInformation = "0"
+                memoSaved = memoSavedCount.toString(),
+                intentsSaved = intentsSavedCount.toString(),
+                intentsCompleted = intentsCompletedCount.toString()
             ),
             isDarkModeEnabled = darkMode,
             darkModeConfig = darkModeConfig,
             currentTheme = currentTheme,
             customThemeColor = customThemeColorValue,
+            showTabLabels = showTabLabels,
             notificationsEnabled = notifications,
             defaultRemindOffset = offset,
             isCalendarSyncEnabled = calendarSync,
@@ -129,6 +150,12 @@ class ProfileViewModel(
         }
     }
 
+    fun setShowTabLabels(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepository.setShowTabLabels(enabled)
+        }
+    }
+
     fun setDarkModeConfig(config: DarkModeConfig) {
         viewModelScope.launch(Dispatchers.IO) {
             settingsRepository.setDarkModeConfig(config.name)
@@ -138,6 +165,12 @@ class ProfileViewModel(
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             settingsRepository.setNotificationsEnabled(enabled)
+        }
+    }
+
+    fun updateDefaultRemindOffset(minutes: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepository.setDefaultRemindOffsetMinutes(minutes)
         }
     }
 
