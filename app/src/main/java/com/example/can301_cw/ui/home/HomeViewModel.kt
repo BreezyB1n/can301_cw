@@ -35,18 +35,32 @@ class HomeViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val _selectedDateFilter = MutableStateFlow<String?>(null)
+    val selectedDateFilter: StateFlow<String?> = _selectedDateFilter.asStateFlow()
+
     val memoItems: StateFlow<List<MemoItem>> = combine(
         memoDao.getAllMemos(),
-        _searchQuery
-    ) { list, query ->
-        val filteredList = if (query.isBlank()) {
-            list
-        } else {
-            list.filter { item ->
+        _searchQuery,
+        _selectedDateFilter
+    ) { list, query, dateFilter ->
+        var filteredList = list
+
+        // Apply Search Filter
+        if (query.isNotBlank()) {
+            filteredList = filteredList.filter { item ->
                 item.title.contains(query, ignoreCase = true) ||
                 item.recognizedText.contains(query, ignoreCase = true) ||
                 item.userInputText.contains(query, ignoreCase = true) ||
                 item.tags.any { it.contains(query, ignoreCase = true) }
+            }
+        }
+
+        // Apply Date Filter
+        if (dateFilter != null) {
+            val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            filteredList = filteredList.filter { item ->
+                val itemDate = dateFormatter.format(item.createdAt)
+                itemDate == dateFilter
             }
         }
 
@@ -70,6 +84,25 @@ class HomeViewModel(
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
+
+    fun onDateFilterSelected(date: String?) {
+        _selectedDateFilter.value = date
+    }
+    
+    // Get list of available dates from all memos
+    val availableDates: StateFlow<List<String>> = memoDao.getAllMemos()
+        .map { memos ->
+            val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            memos.map { dateFormatter.format(it.createdAt) }
+                .distinct()
+                .sortedDescending()
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
 
     val pendingIntentsTodayCount: StateFlow<Int> = memoDao.getAllMemos()
         .map { memos ->

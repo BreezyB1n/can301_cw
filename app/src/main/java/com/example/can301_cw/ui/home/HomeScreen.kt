@@ -96,6 +96,10 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
@@ -107,6 +111,10 @@ fun HomeScreen(
     val memoItems by viewModel.memoItems.collectAsState()
     val pendingIntentsTodayCount by viewModel.pendingIntentsTodayCount.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val availableDates by viewModel.availableDates.collectAsState()
+    val selectedDateFilter by viewModel.selectedDateFilter.collectAsState()
+    
+    var showDateFilterSheet by remember { mutableStateOf(false) }
 
     HomeScreenContent(
         memoItems = memoItems,
@@ -117,8 +125,84 @@ fun HomeScreen(
         onAddMemoClick = onAddMemoClick,
         onMemoClick = onMemoClick,
         onIntentsClick = onIntentsClick,
-        onDeleteMemo = viewModel::deleteMemo
+        onDeleteMemo = viewModel::deleteMemo,
+        onDateHistoryClick = { showDateFilterSheet = true },
+        selectedDateFilter = selectedDateFilter,
+        onClearDateFilter = { viewModel.onDateFilterSelected(null) }
     )
+
+    if (showDateFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showDateFilterSheet = false },
+            sheetState = rememberModalBottomSheetState(
+                skipPartiallyExpanded = false
+            ),
+            modifier = Modifier.fillMaxSize().padding(top = 100.dp) // Occupy significant height but respect top padding
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Select Date",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                LazyColumn {
+                    items(availableDates) { date ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.onDateFilterSelected(date)
+                                    showDateFilterSheet = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.DateRange,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = date,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            if (date == selectedDateFilter) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                        HorizontalDivider()
+                    }
+                }
+                
+                if (availableDates.isEmpty()) {
+                     Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No memos available.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,7 +216,10 @@ fun HomeScreenContent(
     onAddMemoClick: () -> Unit = {},
     onMemoClick: (String) -> Unit = {},
     onIntentsClick: () -> Unit = {},
-    onDeleteMemo: (String) -> Unit = {}
+    onDeleteMemo: (String) -> Unit = {},
+    onDateHistoryClick: () -> Unit = {},
+    selectedDateFilter: String? = null,
+    onClearDateFilter: () -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -191,24 +278,38 @@ fun HomeScreenContent(
         topBar = {
             MediumTopAppBar(
                 title = {
-                    Text(
-                        text = "Memo",
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (selectedDateFilter != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = selectedDateFilter,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            IconButton(onClick = onClearDateFilter, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear Filter", modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "Memo",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 navigationIcon = {
                     Box(modifier = Modifier.padding(start = 16.dp, end = 8.dp)) {
                         Surface(
                             shape = CircleShape,
-                            color = Color.White,
+                            color = if (selectedDateFilter != null) MaterialTheme.colorScheme.primary else Color.White,
                             modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                IconButton(onClick = { /* TODO */ }) {
+                                IconButton(onClick = onDateHistoryClick) {
                                     Icon(
                                         imageVector = Icons.Outlined.DateRange,
                                         contentDescription = "History",
-                                        tint = Color.Black
+                                        tint = if (selectedDateFilter != null) MaterialTheme.colorScheme.onPrimary else Color.Black
                                     )
                                 }
                             }
