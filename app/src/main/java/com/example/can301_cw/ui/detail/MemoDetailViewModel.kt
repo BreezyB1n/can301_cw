@@ -191,8 +191,20 @@ class MemoDetailViewModel(
 
                 // 2. Call API
                 val apiKey = settingsRepository.aiApiKey.first()
+                val gson = Gson()
+                
+                // Fetch all tags
+                val allTags = memoDao.getAllTags().first().flatMap { tagString ->
+                    try {
+                        val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                        gson.fromJson<List<String>>(tagString, listType) ?: emptyList()
+                    } catch (e: Exception) {
+                        emptyList<String>()
+                    }
+                }.toSet().toList()
+
                 val result = ArkChatClient.chatWithImageUrl(
-                    tags = emptyList(),
+                    tags = allTags,
                     content = if (item.imageData != null) base64Image else (item.userInputText.ifBlank { item.recognizedText }),
                     isImage = item.imageData != null,
                     apiKey = apiKey
@@ -201,8 +213,6 @@ class MemoDetailViewModel(
                 result.onSuccess { jsonString ->
                     // 3. Parse JSON
                     println("AI Regeneration Result: $jsonString")
-
-                    val gson = Gson()
                     
                     // Parse the outer layer (OpenAI format)
                     val rootObj = JsonParser.parseString(jsonString).asJsonObject

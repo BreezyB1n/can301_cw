@@ -130,7 +130,7 @@ object ArkChatClient {
         val textPrompt = JsonObject().apply {
             add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
             addProperty("isimage", if (isImage) 1 else 0)
-            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields. STRICTLY reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags. For 'startTime', use the format 'yyyy-MM-dd HH:mm'. If no specific time (HH:mm) is identified, use 'yyyy-MM-dd'. If the date cannot be determined, return 'Today'.")
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields. STRICTLY reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags. The 'tags' field contains a list of existing tags. When generating tags for the content, prioritize using these existing tags if they are relevant. Only create new tags if no existing tags are suitable. For 'startTime', use the format 'yyyy-MM-dd HH:mm'. If no specific time (HH:mm) is identified, use 'yyyy-MM-dd'. If the date cannot be determined, return 'Today'.")
             add("schema", schemaObj)
             
             // If user text is provided, add it as supplementary instruction
@@ -320,7 +320,7 @@ object ArkChatClient {
         val textPrompt = JsonObject().apply {
             add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
             addProperty("isimage", if (isImage) 1 else 0)
-            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields. STRICTLY reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags. For 'startTime', use the format 'yyyy-MM-dd HH:mm'. If no specific time (HH:mm) is identified, use 'yyyy-MM-dd'. If the date cannot be determined, return 'Today'.")
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields. STRICTLY reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags. The 'tags' field contains a list of existing tags. When generating tags for the content, prioritize using these existing tags if they are relevant. Only create new tags if no existing tags are suitable. For 'startTime', use the format 'yyyy-MM-dd HH:mm'. If no specific time (HH:mm) is identified, use 'yyyy-MM-dd'. If the date cannot be determined, return 'Today'.")
             add("schema", schemaObj)
         }.toString()
 

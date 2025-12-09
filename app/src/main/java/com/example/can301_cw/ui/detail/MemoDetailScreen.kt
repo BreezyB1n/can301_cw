@@ -619,7 +619,6 @@ fun ScheduleTaskCard(
                                      coroutineScope.launch {
                                          delay(2000)
                                          isVisible = false
-                                         delay(500)
                                          onToggleTaskStatus(task.id)
                                      }
                                  } else {
@@ -777,28 +776,27 @@ fun ScheduleTaskCard(
                     }
 
                     Button(
-                                        onClick = {
-                                            isLocallyIgnored = true
-                                            if (!showAllTasks) {
-                                                coroutineScope.launch {
-                                                    delay(2000)
-                                                    isVisible = false
-                                                    delay(500)
-                                                    onSetTaskStatus(task.id, TaskStatus.IGNORED)
-                                                }
-                                            } else {
-                                                onSetTaskStatus(task.id, TaskStatus.IGNORED)
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                        shape = RoundedCornerShape(15.dp),
-                                        modifier = Modifier.height(30.dp)
-                                    ) {
-                                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
-                                    }
+                        onClick = {
+                            isLocallyIgnored = true
+                            if (!showAllTasks) {
+                                coroutineScope.launch {
+                                    delay(2000)
+                                    isVisible = false
+                                    onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                                }
+                            } else {
+                                onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(15.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
+                    }
                 }
             }
         }
