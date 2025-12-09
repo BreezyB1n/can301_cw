@@ -57,6 +57,11 @@ import java.util.Date
 import java.util.Locale
 import com.example.can301_cw.ui.components.ReminderDialog
 
+import android.content.Intent
+import android.provider.CalendarContract
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.ui.platform.LocalContext
+
 @Composable
 fun MemoDetailScreen(
     viewModel: MemoDetailViewModel,
@@ -522,6 +527,7 @@ fun ScheduleTaskCard(
     showAllTasks: Boolean
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     var isVisible by remember { mutableStateOf(true) }
     
     // UI states for delayed interaction
@@ -694,6 +700,29 @@ fun ScheduleTaskCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_INSERT).apply {
+                                data = CalendarContract.Events.CONTENT_URI
+                                putExtra(CalendarContract.Events.TITLE, task.coreTasks.joinToString(", "))
+                                // We don't have easy access to summary here, so using theme or core tasks
+                                putExtra(CalendarContract.Events.DESCRIPTION, task.theme)
+                            }
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(15.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(Icons.Filled.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Calendar", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    Button(
                         onClick = { showReminderDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
@@ -702,7 +731,7 @@ fun ScheduleTaskCard(
                     ) {
                         Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) "Update Reminder" else "Set Reminder", style = MaterialTheme.typography.labelMedium)
+                        Text(if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) "Update" else "Reminder", style = MaterialTheme.typography.labelMedium)
                     }
 
                     Button(
