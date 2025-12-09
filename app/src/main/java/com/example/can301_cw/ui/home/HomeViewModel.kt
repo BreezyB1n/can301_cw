@@ -11,6 +11,7 @@ import com.example.can301_cw.network.ArkChatClient
 import com.example.can301_cw.model.ApiResponse
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import com.example.can301_cw.model.TaskStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class HomeViewModel(
     private val memoDao: MemoDao,
@@ -26,24 +32,81 @@ class HomeViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     
-    val memoItems: StateFlow<List<MemoItem>> = memoDao.getAllMemos()
-        .map { list ->
-            list.map { item ->
-                // Load image data from file if path exists and data is missing
-                if (item.imagePath != null && item.imageData == null) {
-                    item.apply {
-                        imageData = imageStorageManager.loadImage(imagePath!!)
-                    }
-                } else {
-                    item
-                }
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    val memoItems: StateFlow<List<MemoItem>> = combine(
+        memoDao.getAllMemos(),
+        _searchQuery
+    ) { list, query ->
+        val filteredList = if (query.isBlank()) {
+            list
+        } else {
+            list.filter { item ->
+                item.title.contains(query, ignoreCase = true) ||
+                item.recognizedText.contains(query, ignoreCase = true) ||
+                item.userInputText.contains(query, ignoreCase = true) ||
+                item.tags.any { it.contains(query, ignoreCase = true) }
             }
         }
+
+        filteredList.map { item ->
+            // Load image data from file if path exists and data is missing
+            if (item.imagePath != null && item.imageData == null) {
+                item.apply {
+                    imageData = imageStorageManager.loadImage(imagePath!!)
+                }
+            } else {
+                item
+            }
+        }
+    }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+    }
+
+    val pendingIntentsTodayCount: StateFlow<Int> = memoDao.getAllMemos()
+        .map { memos ->
+            val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val todayStr = dateFormatter.format(Date())
+
+            var count = 0
+            memos.forEach { memo ->
+                val memoDate = dateFormatter.format(memo.createdAt)
+                memo.apiResponse?.schedule?.tasks?.forEach { task ->
+                    if (task.taskStatus == TaskStatus.PENDING) {
+                        val taskDate = extractDate(task.startTime)
+                        val finalDate = if (isValidDate(taskDate)) taskDate else memoDate
+                        if (finalDate == todayStr) {
+                            count++
+                        }
+                    }
+                }
+            }
+            count
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
+    private fun extractDate(startTime: String): String {
+        if (startTime.isBlank() || startTime.equals("Today", ignoreCase = true)) return ""
+        val delimiters = charArrayOf(' ', 'T')
+        val datePart = startTime.split(*delimiters)[0]
+        return if (datePart.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) datePart else ""
+    }
+
+    private fun isValidDate(dateStr: String): Boolean {
+        return dateStr.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))
+    }
 
     fun addMemoItem(item: MemoItem) {
         viewModelScope.launch(Dispatchers.IO) {

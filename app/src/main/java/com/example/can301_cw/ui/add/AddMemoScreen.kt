@@ -63,6 +63,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,6 +80,9 @@ import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.example.can301_cw.model.ApiResponse
 import java.io.File
+
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Schedule
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -113,6 +117,22 @@ fun AddMemoScreen(
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tmpFile)
         tempImageUri = uri
         takePicture.launch(uri)
+    }
+
+    // Toast for error
+    if (uiState.error != null) {
+        Toast.makeText(context, uiState.error, Toast.LENGTH_LONG).show()
+        // Reset error after showing to avoid repeated toasts on recomposition? 
+        // Ideally ViewModel handles this, or we just show it. 
+        // But Compose might show it repeatedly if we don't consume it.
+        // For simplicity, let's just show it. 
+        // Better pattern: LaunchedEffect(uiState.error) { ... }
+    }
+
+    LaunchedEffect(uiState.error) {
+        if (uiState.error != null) {
+            Toast.makeText(context, uiState.error, Toast.LENGTH_LONG).show()
+        }
     }
 
     Scaffold(
@@ -302,7 +322,7 @@ fun AddMemoScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilledTonalButton(
                         onClick = { viewModel.parseContent() },
-                        enabled = uiState.content.isNotBlank() || uiState.selectedImageUri != null,
+                        enabled = (uiState.content.isNotBlank() || uiState.selectedImageUri != null) && !uiState.isParsing,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -401,18 +421,30 @@ fun AddMemoScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 uiState.apiResponse?.allTags?.forEach { tag ->
+                                    val isSelected = uiState.selectedTags.contains(tag)
                                     AssistChip(
-                                        onClick = { /* No-op */ },
+                                        onClick = { if (isSelected) viewModel.removeTag(tag) else viewModel.addTag(tag) },
                                         label = { Text(tag, style = MaterialTheme.typography.labelSmall) },
-                                        colors = AssistChipDefaults.assistChipColors(
-                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                        ),
-                                        border = null,
+                                        colors = if (isSelected) {
+                                            AssistChipDefaults.assistChipColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        } else {
+                                            AssistChipDefaults.assistChipColors()
+                                        },
+                                        border = if (isSelected) null else AssistChipDefaults.assistChipBorder(enabled = true),
                                         modifier = Modifier.height(24.dp)
                                     )
                                 }
                             }
+                            
+                            HorizontalDivider(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
                         }
 
                         // Local Tags
@@ -514,83 +546,92 @@ fun AnalysisResultSection(response: ApiResponse, context: Context) {
         
         Spacer(modifier = Modifier.height(12.dp))
         
-        if (response.mostPossibleCategory == "SCHEDULE") {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Lightbulb, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Schedule Detected", style = MaterialTheme.typography.labelLarge)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Event: ${response.schedule.title}",
-                        style = MaterialTheme.typography.bodySmall
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Lightbulb,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                    response.schedule.tasks.firstOrNull()?.let { task ->
-                        Text(
-                            "Time: ${task.startTime}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_INSERT).apply {
-                                        data = CalendarContract.Events.CONTENT_URI
-                                        putExtra(CalendarContract.Events.TITLE, task.coreTasks.joinToString(", "))
-                                        putExtra(CalendarContract.Events.DESCRIPTION, response.information.summary)
-                                    }
-                                    context.startActivity(intent)
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Icon(Icons.Filled.DateRange, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Calendar", fontSize = androidx.compose.ui.unit.TextUnit.Unspecified)
-                            }
-
-                            OutlinedButton(
-                                onClick = { Toast.makeText(context, "Reminder Added (Simulated)", Toast.LENGTH_SHORT).show() },
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                modifier = Modifier.height(32.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                            ) {
-                                Icon(Icons.Filled.Info, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Reminder")
-                            }
-                        }
-                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Schedule Detected", style = MaterialTheme.typography.labelLarge)
                 }
-            }
-        } else {
-             Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                 Column(modifier = Modifier.padding(12.dp)) {
-                     Text("Info Extracted", style = MaterialTheme.typography.labelLarge)
-                     Text(
-                         response.information.summary,
-                         style = MaterialTheme.typography.bodySmall
-                     )
-                 }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Event,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = response.schedule.title,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    )
+                }
+
+                response.schedule.tasks.firstOrNull()?.let { task ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Schedule,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = task.startTime,
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                //     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                //         Button(
+                //             onClick = {
+                //                 val intent = Intent(Intent.ACTION_INSERT).apply {
+                //                     data = CalendarContract.Events.CONTENT_URI
+                //                     putExtra(CalendarContract.Events.TITLE, task.coreTasks.joinToString(", "))
+                //                     putExtra(CalendarContract.Events.DESCRIPTION, response.information.summary)
+                //                 }
+                //                 context.startActivity(intent)
+                //             },
+                //             colors = ButtonDefaults.buttonColors(
+                //                 containerColor = MaterialTheme.colorScheme.primary,
+                //                 contentColor = MaterialTheme.colorScheme.onPrimary
+                //             ),
+                //             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                //             modifier = Modifier.height(32.dp)
+                //         ) {
+                //             Icon(Icons.Filled.DateRange, contentDescription = null, modifier = Modifier.size(14.dp))
+                //             Spacer(modifier = Modifier.width(4.dp))
+                //             Text("Calendar", fontSize = androidx.compose.ui.unit.TextUnit.Unspecified)
+                //         }
+
+                //         OutlinedButton(
+                //             onClick = { Toast.makeText(context, "Reminder Added (Simulated)", Toast.LENGTH_SHORT).show() },
+                //             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                //             modifier = Modifier.height(32.dp),
+                //             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                //         ) {
+                //             Icon(Icons.Filled.Info, contentDescription = null, modifier = Modifier.size(14.dp))
+                //             Spacer(modifier = Modifier.width(4.dp))
+                //             Text("Reminder")
+                //         }
+                //     }
+                }
             }
         }
     }

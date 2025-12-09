@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.can301_cw.data.ImageStorageManager
 import com.example.can301_cw.data.MemoDao
+import com.example.can301_cw.data.SettingsRepository
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.network.ArkChatClient
 import com.example.can301_cw.notification.ReminderScheduler
@@ -23,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,7 +35,8 @@ class AddMemoViewModel(
     private val application: Application,
     private val memoDao: MemoDao,
     private val imageStorageManager: ImageStorageManager,
-    private val reminderScheduler: ReminderScheduler
+    private val reminderScheduler: ReminderScheduler,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddMemoUiState())
@@ -43,8 +46,25 @@ class AddMemoViewModel(
 
     // Mock local tags for demo purpose
     init {
-        _uiState.update { 
-            it.copy(localTags = listOf("SwiftUI", "iOS", "会议", "动画", "技术书籍", "美食", "旅游", "工作", "生活"))
+        // Observe all tags from DB
+        viewModelScope.launch(Dispatchers.IO) {
+            memoDao.getAllTags().collect { tagsList ->
+                // Flatten and dedup
+                val allTags = tagsList.flatMap { tagString ->
+                    try {
+                        // Converters store it as JSON string.
+                        // We use Gson to parse it back to a List<String>.
+                        val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                        gson.fromJson<List<String>>(tagString, listType) ?: emptyList()
+                    } catch (e: Exception) {
+                        emptyList<String>()
+                    }
+                }.toSet().toList()
+
+                _uiState.update { 
+                    it.copy(localTags = allTags)
+                }
+            }
         }
     }
 
@@ -111,16 +131,25 @@ class AddMemoViewModel(
 
     fun parseContent() {
         val state = _uiState.value
-        // Combine text content and OCR text
+        
+        // Prepare text content (Title + Input + OCR)
         val textToAnalyze = buildString {
-            if (state.title.isNotBlank()) append("标题: ${state.title}\n")
-            if (state.content.isNotBlank()) append("内容: ${state.content}\n")
-            if (state.recognizedText.isNotBlank()) append("图片文字: ${state.recognizedText}\n")
+            if (state.title.isNotBlank()) append("Title: ${state.title}\n")
+            if (state.content.isNotBlank()) append("Content: ${state.content}\n")
+            // If we have recognized text, we can append it as well, 
+            // though Vision model can read image too. 
+            // Let's include it as supplementary info if it exists.
+            if (state.recognizedText.isNotBlank()) append("OCR Text: ${state.recognizedText}\n")
+        }.trim()
+
+        // Check if we have anything to analyze
+        if (textToAnalyze.isBlank() && state.selectedImageUri == null) {
+             _uiState.update { it.copy(error = "Please enter text or select an image.") }
+             return
         }
 
-        if (textToAnalyze.isBlank() && state.selectedImageUri == null) return
-
         viewModelScope.launch {
+            // Set parsing state to true immediately
             _uiState.update { it.copy(isParsing = true, error = null) }
             
             try {
@@ -129,15 +158,21 @@ class AddMemoViewModel(
                     compressImageToBase64(uri)
                 }
 
-                // Call AI
-                // We use tags as context if any
-                val tagsContext = state.selectedTags.toList()
+                // Call AI with generic analyzeContent
+                val tagsContext = state.selectedTags.toList() + state.localTags
+                val allAvailableTags = state.localTags
                 
+                // Get API Key from Settings
+                val apiKey = settingsRepository.aiApiKey.first()
+
                 val result = withContext(Dispatchers.IO) {
-                    ArkChatClient.chatWithImageUrl(
-                        tags = tagsContext,
-                        content = if (base64Image != null) base64Image else textToAnalyze, 
-                        isImage = base64Image != null
+                    ArkChatClient.analyzeContent(
+                        context = application,
+                        text = if (textToAnalyze.isBlank()) null else textToAnalyze,
+                        imageBase64 = base64Image,
+                        tags = allAvailableTags,
+                        apiKeyResId = -1, // Ignore resource ID
+                        apiKey = apiKey   // Use the key string directly
                     )
                 }
 
@@ -156,23 +191,23 @@ class AddMemoViewModel(
                                 _uiState.update { 
                                     it.copy(
                                         apiResponse = parsedResponse,
-                                        // Auto-populate tags from AI, limit to 6
                                         selectedTags = (it.selectedTags + parsedResponse.allTags).distinct().take(6).toSet()
                                     ) 
                                 }
                             }
                         } catch (e: Exception) {
-                            _uiState.update { it.copy(error = "解析响应失败: ${e.message}") }
+                            _uiState.update { it.copy(error = "Failed to parse response: ${e.message}") }
                             e.printStackTrace()
                         }
                     },
                     onFailure = { e ->
-                        _uiState.update { it.copy(error = "AI 请求失败: ${e.message}") }
+                        _uiState.update { it.copy(error = "AI Request Failed: ${e.message}") }
                     }
                 )
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = "未知错误: ${e.message}") }
+                _uiState.update { it.copy(error = "Unknown Error: ${e.message}") }
             } finally {
+                // Ensure parsing state is reset to false when everything is done
                 _uiState.update { it.copy(isParsing = false) }
             }
         }
@@ -233,7 +268,7 @@ class AddMemoViewModel(
                 }
 
                 val memoItem = MemoItem(
-                    title = state.title,
+                    title = state.title.ifBlank { state.apiResponse?.schedule?.title ?: state.apiResponse?.information?.title ?: "" },
                     userInputText = state.content,
                     recognizedText = state.recognizedText,
                     imagePath = savedImagePath,
@@ -241,7 +276,7 @@ class AddMemoViewModel(
                     apiResponse = state.apiResponse,
                     hasAPIResponse = state.apiResponse != null,
                     createdAt = Date(),
-                    source = if (state.selectedImageUri != null) "IMAGE" else "TEXT"
+                    source = "Manually"
                 )
 
                 memoDao.insertMemo(memoItem)
@@ -264,12 +299,13 @@ class AddMemoViewModel(
         private val application: Application,
         private val memoDao: MemoDao,
         private val imageStorageManager: ImageStorageManager,
-        private val reminderScheduler: ReminderScheduler
+        private val reminderScheduler: ReminderScheduler,
+        private val settingsRepository: SettingsRepository
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(AddMemoViewModel::class.java)) {
-                return AddMemoViewModel(application, memoDao, imageStorageManager, reminderScheduler) as T
+                return AddMemoViewModel(application, memoDao, imageStorageManager, reminderScheduler, settingsRepository) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

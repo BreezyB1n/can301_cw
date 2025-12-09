@@ -57,6 +57,16 @@ import java.util.Date
 import java.util.Locale
 import com.example.can301_cw.ui.components.ReminderDialog
 
+import android.content.Intent
+import android.os.Build
+import android.provider.CalendarContract
+import androidx.annotation.RequiresApi
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.ui.platform.LocalContext
+
+import androidx.compose.material.icons.filled.Refresh
+
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MemoDetailScreen(
     viewModel: MemoDetailViewModel,
@@ -72,13 +82,13 @@ fun MemoDetailScreen(
     } else {
         val item = memoItem!!
         val data = item.apiResponse ?: createFallbackApiResponse(item)
-        val isAiProcessing = item.imageData != null && !item.hasAPIResponse
+        val isAiProcessing = item.isAPIProcessing || (item.imageData != null && !item.hasAPIResponse)
         MemoDetailContent(
             onBackClick = onBackClick,
             data = data,
             createdAt = item.createdAt,
-            source = item.source.ifEmpty { "Manual" },
-            isAICompleted = item.hasAPIResponse,
+            source = item.source.ifEmpty { "Manually" },
+            isAICompleted = item.hasAPIResponse && !isAiProcessing,
             imageData = item.imageData,
             isAiProcessing = isAiProcessing,
             originalTitle = item.title,
@@ -86,7 +96,8 @@ fun MemoDetailScreen(
             defaultRemindOffset = defaultRemindOffset,
             onToggleTaskStatus = viewModel::toggleTaskStatus,
             onSetTaskStatus = viewModel::setTaskStatus,
-            onSetTaskReminder = viewModel::setTaskReminder
+            onSetTaskReminder = viewModel::setTaskReminder,
+            onRegenerate = viewModel::regenerateAIAnalysis
         )
     }
 }
@@ -117,13 +128,14 @@ fun createFallbackApiResponse(item: MemoItem): ApiResponse {
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoDetailContent(
     onBackClick: () -> Unit = {},
     data: ApiResponse,
     createdAt: java.util.Date = java.util.Date(),
-    source: String = "Manual",
+    source: String = "Manually",
     isAICompleted: Boolean = false,
     imageData: ByteArray? = null,
     isAiProcessing: Boolean = false,
@@ -132,12 +144,37 @@ fun MemoDetailContent(
     defaultRemindOffset: Int = 5,
     onToggleTaskStatus: (String) -> Unit = {},
     onSetTaskStatus: (String, TaskStatus) -> Unit = { _, _ -> },
-    onSetTaskReminder: (String, Long) -> Unit = { _, _ -> }
+    onSetTaskReminder: (String, Long) -> Unit = { _, _ -> },
+    onRegenerate: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Info", "Intents")
     var showFullScreenImage by remember { mutableStateOf(false) }
+    var showRegenerateDialog by remember { mutableStateOf(false) }
+
+    if (showRegenerateDialog) {
+        AlertDialog(
+            onDismissRequest = { showRegenerateDialog = false },
+            title = { Text("Regenerate Analysis") },
+            text = { Text("Are you sure you want to regenerate the analysis? This will overwrite the current information and intents.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRegenerate()
+                        showRegenerateDialog = false
+                    }
+                ) {
+                    Text("Regenerate")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRegenerateDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showFullScreenImage && imageData != null && imageData.isNotEmpty()) {
         Dialog(
@@ -175,6 +212,11 @@ fun MemoDetailContent(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showRegenerateDialog = true }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Regenerate Analysis")
+                    }
+                }
             )
         },
     ) { paddingValues ->
@@ -289,7 +331,7 @@ fun HeaderSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Title Logic similar to HomeScreen
-        val titleText = if (isAiProcessing) "Loading..." else originalTitle.ifEmpty { data.schedule.title.takeIf { it.isNotEmpty() } ?: data.information.title }
+        val titleText = if (isAiProcessing && originalTitle.isEmpty() && data.schedule.title.isEmpty() && data.information.title.isEmpty()) "Loading..." else originalTitle.ifEmpty { data.schedule.title.takeIf { it.isNotEmpty() } ?: data.information.title }
         
         if (titleText.isNotEmpty()) {
             Text(
@@ -311,7 +353,10 @@ fun HeaderSection(
             Text("Source: $source", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (isAICompleted) {
+            if (isAiProcessing) {
+                Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFFC107)) // Yellow
+                Text("AI Analysis: Regenerating...", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFFC107))
+            } else if (isAICompleted) {
                 Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF4CAF50)) // Green
                 Text("AI Analysis: Completed", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
             } else {
@@ -432,6 +477,7 @@ fun CircularCheckbox(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScheduleTabContent(
     schedule: Schedule,
@@ -512,6 +558,7 @@ fun ScheduleTabContent(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScheduleTaskCard(
     task: ScheduleTask,
@@ -522,6 +569,7 @@ fun ScheduleTaskCard(
     showAllTasks: Boolean
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     var isVisible by remember { mutableStateOf(true) }
     
     // UI states for delayed interaction
@@ -571,7 +619,6 @@ fun ScheduleTaskCard(
                                      coroutineScope.launch {
                                          delay(2000)
                                          isVisible = false
-                                         delay(500)
                                          onToggleTaskStatus(task.id)
                                      }
                                  } else {
@@ -694,6 +741,29 @@ fun ScheduleTaskCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_INSERT).apply {
+                                data = CalendarContract.Events.CONTENT_URI
+                                putExtra(CalendarContract.Events.TITLE, task.coreTasks.joinToString(", "))
+                                // We don't have easy access to summary here, so using theme or core tasks
+                                putExtra(CalendarContract.Events.DESCRIPTION, task.theme)
+                            }
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(15.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(Icons.Filled.DateRange, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Calendar", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    Button(
                         onClick = { showReminderDialog = true },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107)),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
@@ -702,32 +772,31 @@ fun ScheduleTaskCard(
                     ) {
                         Icon(Icons.Outlined.Notifications, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) "Update Reminder" else "Set Reminder", style = MaterialTheme.typography.labelMedium)
+                        Text(if (task.reminderTime != null && task.reminderTime!! > System.currentTimeMillis()) "Update" else "Reminder", style = MaterialTheme.typography.labelMedium)
                     }
 
                     Button(
-                                        onClick = {
-                                            isLocallyIgnored = true
-                                            if (!showAllTasks) {
-                                                coroutineScope.launch {
-                                                    delay(2000)
-                                                    isVisible = false
-                                                    delay(500)
-                                                    onSetTaskStatus(task.id, TaskStatus.IGNORED)
-                                                }
-                                            } else {
-                                                onSetTaskStatus(task.id, TaskStatus.IGNORED)
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                                        shape = RoundedCornerShape(15.dp),
-                                        modifier = Modifier.height(30.dp)
-                                    ) {
-                                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
-                                    }
+                        onClick = {
+                            isLocallyIgnored = true
+                            if (!showAllTasks) {
+                                coroutineScope.launch {
+                                    delay(2000)
+                                    isVisible = false
+                                    onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                                }
+                            } else {
+                                onSetTaskStatus(task.id, TaskStatus.IGNORED)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE57373)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(15.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ignore", style = MaterialTheme.typography.labelMedium, color = Color.White)
+                    }
                 }
             }
         }
@@ -735,6 +804,7 @@ fun ScheduleTaskCard(
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun MemoDetailScreenPreview() {

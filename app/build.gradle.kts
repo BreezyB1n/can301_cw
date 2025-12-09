@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.runtime)
+    implementation("androidx.core:core-splashscreen:1.0.1")
     ksp(libs.androidx.room.compiler)
     
     // 补充缺失的依赖

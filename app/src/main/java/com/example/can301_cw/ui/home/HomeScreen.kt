@@ -2,6 +2,7 @@ package com.example.can301_cw.ui.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Notifications
@@ -58,6 +62,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -78,7 +84,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.BasicTextField
 import android.graphics.BitmapFactory
+import androidx.compose.ui.text.font.FontStyle
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 import kotlinx.coroutines.launch
@@ -93,14 +101,22 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit,
-    onMemoClick: (String) -> Unit
+    onMemoClick: (String) -> Unit,
+    onIntentsClick: () -> Unit = {}
 ) {
     val memoItems by viewModel.memoItems.collectAsState()
+    val pendingIntentsTodayCount by viewModel.pendingIntentsTodayCount.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+
     HomeScreenContent(
         memoItems = memoItems,
+        pendingIntentsTodayCount = pendingIntentsTodayCount,
+        searchQuery = searchQuery,
+        onSearchQueryChange = viewModel::onSearchQueryChanged,
         modifier = modifier.fillMaxSize(),
         onAddMemoClick = onAddMemoClick,
         onMemoClick = onMemoClick,
+        onIntentsClick = onIntentsClick,
         onDeleteMemo = viewModel::deleteMemo
     )
 }
@@ -109,9 +125,13 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(
     memoItems: List<MemoItem>,
+    pendingIntentsTodayCount: Int = 0,
+    searchQuery: String = "",
+    onSearchQueryChange: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit = {},
     onMemoClick: (String) -> Unit = {},
+    onIntentsClick: () -> Unit = {},
     onDeleteMemo: (String) -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -119,6 +139,9 @@ fun HomeScreenContent(
     var memoToDelete by remember { mutableStateOf<MemoItem?>(null) }
     var revealedMemoId by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+    
+    val searchFocusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress && revealedMemoId != null) {
@@ -202,7 +225,12 @@ fun HomeScreenContent(
                             color = Color.White,
                             modifier = Modifier.size(40.dp)
                         ) {
-                            IconButton(onClick = { /* TODO */ }) {
+                            IconButton(onClick = { 
+                                scope.launch {
+                                    listState.animateScrollToItem(0)
+                                    searchFocusRequester.requestFocus()
+                                }
+                            }) {
                                 Icon(
                                     imageVector = Icons.Filled.Search,
                                     contentDescription = "Search",
@@ -246,12 +274,19 @@ fun HomeScreenContent(
         ) {
             // Search Bar Section
             item {
-                SearchBarSection()
+                SearchBarSection(
+                    query = searchQuery,
+                    onQueryChange = onSearchQueryChange,
+                    focusRequester = searchFocusRequester
+                )
             }
 
             // Status Card Section
             item {
-                StatusCardSection()
+                StatusCardSection(
+                    pendingCount = pendingIntentsTodayCount,
+                    onClick = onIntentsClick
+                )
             }
 
             // Memo List
@@ -407,7 +442,11 @@ fun SwipeBox(
 
 
 @Composable
-fun SearchBarSection() {
+fun SearchBarSection(
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
+    focusRequester: FocusRequester = remember { FocusRequester() }
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -426,41 +465,99 @@ fun SearchBarSection() {
                 tint = Color.Gray
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Search Memo...",
-                color = Color.Gray,
-                style = MaterialTheme.typography.bodyLarge
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+                singleLine = true,
+                decorationBox = { innerTextField ->
+                    if (query.isEmpty()) {
+                        Text(
+                            text = "Search Memo...",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                    innerTextField()
+                },
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Black)
             )
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Clear",
+                        tint = Color.Gray
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-fun StatusCardSection() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFD1F0D1)) // Light green
-    ) {
-        Row(
+fun StatusCardSection(
+    pendingCount: Int = 0,
+    onClick: () -> Unit = {}
+) {
+    if (pendingCount > 0) {
+        Card(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary)
         ) {
-            Icon(
-                imageVector = Icons.Filled.Check,
-                contentDescription = null,
-                tint = Color(0xFF2E7D32)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "今日暂无未处理意图!",
-                color = Color(0xFF2E7D32),
-                fontWeight = FontWeight.Medium
-            )
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "You have $pendingCount pending intents for today",
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+            }
+        }
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFD1F0D1)) // Light green
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = Color(0xFF2E7D32)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "No pending intents for today!",
+                    color = Color(0xFF2E7D32),
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }
@@ -639,16 +736,24 @@ fun MemoImage(imageData: ByteArray?, modifier: Modifier = Modifier) {
 @Composable
 fun MemoTextContent(item: MemoItem, maxLines: Int = 4) {
     // Determine if we are waiting for AI response
-    // We assume if there is an image and no API response yet, it's processing
     val isAiProcessing = item.imageData != null && !item.hasAPIResponse
 
     Column {
-        // Title
-        val titleText = if (isAiProcessing) "Loading..." else item.title
+        // Title Priority:
+        // 1. item.title (Manual input or AI title)
+        // 2. apiResponse.schedule.title
+        // 3. apiResponse.information.title
+        // 4. "Untitled Memo"
+        val displayTitle = if (isAiProcessing) "Loading..." else {
+            item.title.takeIf { it.isNotBlank() }
+                ?: item.apiResponse?.schedule?.title?.takeIf { it.isNotBlank() }
+                ?: item.apiResponse?.information?.title?.takeIf { it.isNotBlank() }
+                ?: "Untitled Memo"
+        }
         
-        if (titleText.isNotEmpty()) {
+        if (displayTitle.isNotEmpty()) {
             Text(
-                text = titleText,
+                text = displayTitle,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     lineHeight = 22.sp
@@ -658,10 +763,17 @@ fun MemoTextContent(item: MemoItem, maxLines: Int = 4) {
             Spacer(modifier = Modifier.height(8.dp))
         }
 
+        // Content Priority:
+        // 1. AI Summary (apiResponse.information.summary)
+        // 2. User Input Text (item.userInputText)
+        // 3. Recognized Text (item.recognizedText)
         val description = if (isAiProcessing) {
             "Analyzing image content..."
         } else {
-            if (item.recognizedText.isNotEmpty()) item.recognizedText else item.userInputText
+            item.apiResponse?.information?.summary?.takeIf { it.isNotBlank() }
+                ?: item.userInputText.takeIf { it.isNotBlank() }
+                ?: item.recognizedText.takeIf { it.isNotBlank() }
+                ?: "No content available."
         }
 
         if (description.isNotEmpty()) {
