@@ -533,7 +533,8 @@ fun MainScreen(
                 0 -> HomeScreen(
                     viewModel = homeViewModel,
                     onAddMemoClick = onAddMemoClick, // Pass it down
-                    onMemoClick = onMemoClick
+                    onMemoClick = onMemoClick,
+                    onIntentsClick = { selectedItem = 1 }
                 )
                 1 -> {
                     val context = LocalContext.current

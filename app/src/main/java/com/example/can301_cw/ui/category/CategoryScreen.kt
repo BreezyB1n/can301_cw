@@ -228,25 +228,25 @@ fun TaskCategoryCard(
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
             },
-            leadingContent = {
-                Surface(
-                    modifier = Modifier.size(32.dp),
-                    shape = RoundedCornerShape(4.dp),
-                    color = color
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Text(
-                            text = "#",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                            fontSize = 18.sp
-                        )
-                    }
-                }
-            },
+//            leadingContent = {
+//                Surface(
+//                    modifier = Modifier.size(32.dp),
+//                    shape = RoundedCornerShape(4.dp),
+//                    color = color
+//                ) {
+//                    Box(
+//                        contentAlignment = Alignment.Center,
+//                        modifier = Modifier.fillMaxSize()
+//                    ) {
+//                        Text(
+//                            text = "#",
+//                            color = Color.White,
+//                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+//                            fontSize = 18.sp
+//                        )
+//                    }
+//                }
+//            },
             trailingContent = {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

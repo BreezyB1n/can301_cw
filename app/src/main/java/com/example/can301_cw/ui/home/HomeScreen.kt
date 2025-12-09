@@ -2,6 +2,7 @@ package com.example.can301_cw.ui.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Notifications
@@ -79,6 +82,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.rememberLazyListState
 import android.graphics.BitmapFactory
+import androidx.compose.ui.text.font.FontStyle
 import com.example.can301_cw.model.MemoItem
 import com.example.can301_cw.ui.theme.CAN301_CWTheme
 import kotlinx.coroutines.launch
@@ -93,14 +97,19 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit,
-    onMemoClick: (String) -> Unit
+    onMemoClick: (String) -> Unit,
+    onIntentsClick: () -> Unit = {}
 ) {
     val memoItems by viewModel.memoItems.collectAsState()
+    val pendingIntentsTodayCount by viewModel.pendingIntentsTodayCount.collectAsState()
+
     HomeScreenContent(
         memoItems = memoItems,
+        pendingIntentsTodayCount = pendingIntentsTodayCount,
         modifier = modifier.fillMaxSize(),
         onAddMemoClick = onAddMemoClick,
         onMemoClick = onMemoClick,
+        onIntentsClick = onIntentsClick,
         onDeleteMemo = viewModel::deleteMemo
     )
 }
@@ -109,9 +118,11 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(
     memoItems: List<MemoItem>,
+    pendingIntentsTodayCount: Int = 0,
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit = {},
     onMemoClick: (String) -> Unit = {},
+    onIntentsClick: () -> Unit = {},
     onDeleteMemo: (String) -> Unit = {}
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
@@ -251,7 +262,10 @@ fun HomeScreenContent(
 
             // Status Card Section
             item {
-                StatusCardSection()
+                StatusCardSection(
+                    pendingCount = pendingIntentsTodayCount,
+                    onClick = onIntentsClick
+                )
             }
 
             // Memo List
@@ -436,31 +450,66 @@ fun SearchBarSection() {
 }
 
 @Composable
-fun StatusCardSection() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFD1F0D1)) // Light green
-    ) {
-        Row(
+fun StatusCardSection(
+    pendingCount: Int = 0,
+    onClick: () -> Unit = {}
+) {
+    if (pendingCount > 0) {
+        Card(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary)
         ) {
-            Icon(
-                imageVector = Icons.Filled.Check,
-                contentDescription = null,
-                tint = Color(0xFF2E7D32)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "今日暂无未处理意图!",
-                color = Color(0xFF2E7D32),
-                fontWeight = FontWeight.Medium
-            )
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "You have $pendingCount pending intents for today",
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+            }
+        }
+    } else {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFD1F0D1)) // Light green
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = Color(0xFF2E7D32)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "No pending intents for today!",
+                    color = Color(0xFF2E7D32),
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }

@@ -11,6 +11,7 @@ import com.example.can301_cw.network.ArkChatClient
 import com.example.can301_cw.model.ApiResponse
 import com.google.gson.Gson
 import com.google.gson.JsonParser
+import com.example.can301_cw.model.TaskStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Date
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class HomeViewModel(
     private val memoDao: MemoDao,
@@ -44,6 +47,43 @@ class HomeViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val pendingIntentsTodayCount: StateFlow<Int> = memoDao.getAllMemos()
+        .map { memos ->
+            val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val todayStr = dateFormatter.format(Date())
+
+            var count = 0
+            memos.forEach { memo ->
+                val memoDate = dateFormatter.format(memo.createdAt)
+                memo.apiResponse?.schedule?.tasks?.forEach { task ->
+                    if (task.taskStatus == TaskStatus.PENDING) {
+                        val taskDate = extractDate(task.startTime)
+                        val finalDate = if (isValidDate(taskDate)) taskDate else memoDate
+                        if (finalDate == todayStr) {
+                            count++
+                        }
+                    }
+                }
+            }
+            count
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = 0
+        )
+
+    private fun extractDate(startTime: String): String {
+        if (startTime.isBlank() || startTime.equals("Today", ignoreCase = true)) return ""
+        val delimiters = charArrayOf(' ', 'T')
+        val datePart = startTime.split(*delimiters)[0]
+        return if (datePart.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) datePart else ""
+    }
+
+    private fun isValidDate(dateStr: String): Boolean {
+        return dateStr.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))
+    }
 
     fun addMemoItem(item: MemoItem) {
         viewModelScope.launch(Dispatchers.IO) {
