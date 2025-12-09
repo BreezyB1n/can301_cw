@@ -42,4 +42,7 @@ interface MemoDao {
 
     @Query("SELECT * FROM memos WHERE tags LIKE '%' || :tag || '%' ORDER BY createdAt DESC")
     fun getMemosByTag(tag: String): Flow<List<MemoItem>>
+
+    @Query("SELECT tags FROM memos")
+    fun getAllTags(): Flow<List<String>>
 }

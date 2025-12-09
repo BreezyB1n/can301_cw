@@ -404,7 +404,8 @@ class MainActivity : ComponentActivity() {
                                 application,
                                 database.memoDao(),
                                 imageStorageManager,
-                                reminderScheduler
+                                reminderScheduler,
+                                settingsRepository
                             )
                         )
 

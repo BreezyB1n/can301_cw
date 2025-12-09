@@ -19,9 +19,184 @@ object ArkChatClient {
     private val gson = Gson()
 
     /**
-     * 结构化对话：发送 {tags, content, isimage}，要求服务端返回指定 schema。
-     * content: 文本或 base64(当 isImage=true 时)。
-     * @return 原始 JSON 响应字符串
+     * 通用分析接口：支持纯文本、纯图片、文本+图片三种模式。
+     * 总是会发送 Schema 以获取结构化数据。
+     */
+    fun analyzeContent(
+        context: Context,
+        text: String?,
+        imageBase64: String?,
+        tags: List<String>,
+        modelId: String = "doubao-seed-1-6-vision-250815",
+        apiKeyResId: Int = R.string.ARK_API_KEY,
+        apiKey: String? = null,
+        baseUrl: String = DEFAULT_BASE_URL
+    ): Result<String> {
+        val apiKey = if (!apiKey.isNullOrBlank()) apiKey else context.getString(apiKeyResId)
+        
+        if (text.isNullOrBlank() && imageBase64.isNullOrBlank()) {
+            return Result.failure(IllegalArgumentException("Both text and image are empty"))
+        }
+
+        // 构造 Schema
+        val schemaObj = JsonParser.parseString(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "mostPossibleCategory": {"type": "string"},
+                "schedule": {
+                  "type": "object",
+                  "properties": {
+                    "title": {"type": "string"},
+                    "category": {"type": "string"},
+                    "tasks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "startTime": {"type": "string"},
+                          "endTime": {"type": "string"},
+                          "people": {"type": "array", "items": {"type": "string"}},
+                          "theme": {"type": "string"},
+                          "coreTasks": {"type": "array", "items": {"type": "string"}},
+                          "position": {"type": "array", "items": {"type": "string"}},
+                          "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 6},
+                          "category": {"type": "string"},
+                          "suggestedActions": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["startTime", "endTime", "people", "theme", "coreTasks", "position", "tags", "category", "suggestedActions"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["title","category","tasks"],
+                  "additionalProperties": false
+                },
+                "information": {
+                  "type": "object",
+                  "properties": {
+                    "title": {"type": "string"},
+                    "informationItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {"type": "number"},
+                          "header": {"type": "string"},
+                          "content": {"type": "string"},
+                          "node": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "targetId": {"type": "number"},
+                                  "relationship": {"type": "string"}
+                                },
+                                "required": ["targetId","relationship"],
+                                "additionalProperties": false
+                              },
+                              {"type": "null"}
+                            ]
+                          }
+                        },
+                        "required": ["id","header","content","node"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "relatedItems": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "summary": {"type": "string"},
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "maxItems": 6
+                      }
+                  },
+                  "required": ["title","informationItems","relatedItems","summary","tags"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["mostPossibleCategory","schedule","information"],
+              "additionalProperties": false
+            }
+            """.trimIndent()
+        ).asJsonObject
+
+        // 构造 Instruction Prompt - Use same structure as chatWithImageUrl
+        val isImage = !imageBase64.isNullOrBlank()
+        val textPrompt = JsonObject().apply {
+            add("tags", JsonArray().also { arr -> tags.forEach { arr.add(it) } })
+            addProperty("isimage", if (isImage) 1 else 0)
+            addProperty("instruction", "Understand the image content according to the specified json schema and return the specified json format, without adding unnecessary fields. STRICTLY reply in English. STRICTLY LIMIT all 'tags' arrays to a maximum of 6 items. If there are more, select only the 6 most important tags. For 'startTime', use the format 'yyyy-MM-dd HH:mm'. If no specific time (HH:mm) is identified, use 'yyyy-MM-dd'. If the date cannot be determined, return 'Today'.")
+            add("schema", schemaObj)
+            
+            // If user text is provided, add it as supplementary instruction
+            if (!text.isNullOrBlank()) {
+                addProperty("userContent", text)
+            }
+        }.toString()
+
+        val requestJson = JsonObject().apply {
+            addProperty("model", modelId)
+            add("messages", JsonArray().apply {
+                add(JsonObject().apply {
+                    addProperty("role", "user")
+                    add("content", JsonArray().apply {
+                        // 1. 如果有图片，添加图片部分
+                        if (!imageBase64.isNullOrBlank()) {
+                            add(JsonObject().apply {
+                                addProperty("type", "image_url")
+                                add("image_url", JsonObject().apply {
+                                    addProperty("url", "data:image/jpeg;base64,$imageBase64")
+                                })
+                            })
+                        }
+                        
+                        // 2. 添加文本指令
+                        // If it's image mode, we send the prompt as a text block next to image
+                        // If it's text mode, we send the prompt as the only content
+                        add(JsonObject().apply {
+                            addProperty("type", "text")
+                            addProperty("text", textPrompt)
+                        })
+                    })
+                })
+            })
+        }
+
+        return runCatching {
+            val connection = (URL(baseUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 30_000
+                readTimeout = 120_000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Authorization", "Bearer $apiKey")
+            }
+
+            connection.outputStream.use { output ->
+                output.write(gson.toJson(requestJson).toByteArray(Charsets.UTF_8))
+                output.flush()
+            }
+
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream ?: connection.inputStream
+            val body = stream.bufferedReader().use(BufferedReader::readText)
+            connection.disconnect()
+
+            if (responseCode !in 200..299) {
+                error("HTTP $responseCode $body")
+            }
+            
+            sanitizeResponse(body)
+        }
+    }
+
+    /**
+     * Deprecated: Use analyzeContent instead.
      */
     fun chatWithImageUrl(
         context: Context,
@@ -32,15 +207,11 @@ object ArkChatClient {
         apiKeyResId: Int = R.string.ARK_API_KEY,
         baseUrl: String = DEFAULT_BASE_URL
     ): Result<String> {
-        val apiKey = context.getString(apiKeyResId)
-        return chatWithImageUrl(
-            tags = tags,
-            content = content,
-            isImage = isImage,
-            modelId = modelId,
-            apiKey = apiKey,
-            baseUrl = baseUrl
-        )
+        return if (isImage) {
+            analyzeContent(context, null, content, tags, modelId, apiKeyResId, baseUrl)
+        } else {
+            analyzeContent(context, content, null, tags, modelId, apiKeyResId, baseUrl)
+        }
     }
 
     /**
