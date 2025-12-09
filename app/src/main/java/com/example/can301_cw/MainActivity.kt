@@ -74,6 +74,8 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
 
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+
 class MainActivity : ComponentActivity() {
     private val database by lazy { AppDatabase.getDatabase(this) }
     private val imageStorageManager by lazy { ImageStorageManager(this) }
@@ -106,6 +108,15 @@ class MainActivity : ComponentActivity() {
     private val pendingMemoId = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        var keepSplash = true
+        // Keep splash screen for 2 seconds (simulating loading or branding time)
+        // In a real app, track ViewModel loading state here
+        lifecycleScope.launch {
+            keepSplash = false
+        }
+        splashScreen.setKeepOnScreenCondition { keepSplash }
+        
         super.onCreate(savedInstanceState)
 
         // 创建通知渠道

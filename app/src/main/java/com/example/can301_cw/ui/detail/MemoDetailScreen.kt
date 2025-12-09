@@ -58,12 +58,15 @@ import java.util.Locale
 import com.example.can301_cw.ui.components.ReminderDialog
 
 import android.content.Intent
+import android.os.Build
 import android.provider.CalendarContract
+import androidx.annotation.RequiresApi
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.ui.platform.LocalContext
 
 import androidx.compose.material.icons.filled.Refresh
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MemoDetailScreen(
     viewModel: MemoDetailViewModel,
@@ -125,6 +128,7 @@ fun createFallbackApiResponse(item: MemoItem): ApiResponse {
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemoDetailContent(
@@ -473,6 +477,7 @@ fun CircularCheckbox(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScheduleTabContent(
     schedule: Schedule,
@@ -553,6 +558,7 @@ fun ScheduleTabContent(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ScheduleTaskCard(
     task: ScheduleTask,
@@ -800,6 +806,7 @@ fun ScheduleTaskCard(
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun MemoDetailScreenPreview() {
