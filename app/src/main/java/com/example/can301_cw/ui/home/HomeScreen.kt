@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Face
@@ -61,6 +62,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -81,6 +84,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.BasicTextField
 import android.graphics.BitmapFactory
 import androidx.compose.ui.text.font.FontStyle
 import com.example.can301_cw.model.MemoItem
@@ -102,10 +106,13 @@ fun HomeScreen(
 ) {
     val memoItems by viewModel.memoItems.collectAsState()
     val pendingIntentsTodayCount by viewModel.pendingIntentsTodayCount.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
     HomeScreenContent(
         memoItems = memoItems,
         pendingIntentsTodayCount = pendingIntentsTodayCount,
+        searchQuery = searchQuery,
+        onSearchQueryChange = viewModel::onSearchQueryChanged,
         modifier = modifier.fillMaxSize(),
         onAddMemoClick = onAddMemoClick,
         onMemoClick = onMemoClick,
@@ -119,6 +126,8 @@ fun HomeScreen(
 fun HomeScreenContent(
     memoItems: List<MemoItem>,
     pendingIntentsTodayCount: Int = 0,
+    searchQuery: String = "",
+    onSearchQueryChange: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     onAddMemoClick: () -> Unit = {},
     onMemoClick: (String) -> Unit = {},
@@ -130,6 +139,9 @@ fun HomeScreenContent(
     var memoToDelete by remember { mutableStateOf<MemoItem?>(null) }
     var revealedMemoId by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+    
+    val searchFocusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress && revealedMemoId != null) {
@@ -213,7 +225,12 @@ fun HomeScreenContent(
                             color = Color.White,
                             modifier = Modifier.size(40.dp)
                         ) {
-                            IconButton(onClick = { /* TODO */ }) {
+                            IconButton(onClick = { 
+                                scope.launch {
+                                    listState.animateScrollToItem(0)
+                                    searchFocusRequester.requestFocus()
+                                }
+                            }) {
                                 Icon(
                                     imageVector = Icons.Filled.Search,
                                     contentDescription = "Search",
@@ -257,7 +274,11 @@ fun HomeScreenContent(
         ) {
             // Search Bar Section
             item {
-                SearchBarSection()
+                SearchBarSection(
+                    query = searchQuery,
+                    onQueryChange = onSearchQueryChange,
+                    focusRequester = searchFocusRequester
+                )
             }
 
             // Status Card Section
@@ -421,7 +442,11 @@ fun SwipeBox(
 
 
 @Composable
-fun SearchBarSection() {
+fun SearchBarSection(
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
+    focusRequester: FocusRequester = remember { FocusRequester() }
+) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -440,11 +465,34 @@ fun SearchBarSection() {
                 tint = Color.Gray
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Search Memo...",
-                color = Color.Gray,
-                style = MaterialTheme.typography.bodyLarge
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+                singleLine = true,
+                decorationBox = { innerTextField ->
+                    if (query.isEmpty()) {
+                        Text(
+                            text = "Search Memo...",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                    innerTextField()
+                },
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.Black)
             )
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Clear",
+                        tint = Color.Gray
+                    )
+                }
+            }
         }
     }
 }
