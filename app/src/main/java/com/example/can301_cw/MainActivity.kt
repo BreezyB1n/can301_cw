@@ -455,7 +455,8 @@ class MainActivity : ComponentActivity() {
                             createdAt = Date(),
                             title = "Shared Image",
                             recognizedText = "Shared from external app",
-                            tags = mutableListOf()
+                            tags = mutableListOf(),
+                            source = "Photo Shared"
                         ).apply {
                             imageData = bytes
                         }

@@ -20,6 +20,13 @@ import kotlinx.coroutines.flow.firstOrNull
 
 import com.example.can301_cw.notification.ReminderScheduler
 
+import com.example.can301_cw.network.ArkChatClient
+import com.example.can301_cw.model.ApiResponse
+import com.google.gson.Gson
+import com.google.gson.JsonParser
+import java.util.Date
+import kotlinx.coroutines.flow.first
+
 class MemoDetailViewModel(
     private val memoDao: MemoDao,
     private val imageStorageManager: ImageStorageManager,
@@ -145,6 +152,126 @@ class MemoDetailViewModel(
             }
         }
     }
+
+    fun regenerateAIAnalysis() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val item = memoItem.value ?: return@launch
+            
+            // Set processing state
+            memoDao.insertMemo(item.copy(isAPIProcessing = true))
+
+            try {
+                // 1. Prepare Content (Image or Text)
+                val base64Image = if (item.imageData != null) {
+                     val compressedImageData = compressImage(item.imageData!!)
+                     android.util.Base64.encodeToString(compressedImageData, android.util.Base64.NO_WRAP)
+                } else {
+                    "" // Should handle text-only case if needed, but for now assuming image flow primarily or empty string for text
+                }
+                
+                // For text-only memos, we might need a different API call or pass text as content.
+                // Assuming chatWithImageUrl handles empty image for text-only if we modify it, 
+                // OR we only support image regeneration for now based on previous HomeViewModel logic.
+                // However, ArkChatClient.chatWithImageUrl seems designed for image.
+                // If it's text only, we should use the text content.
+                
+                // Let's check ArkChatClient.chatWithImageUrl signature. 
+                // It takes 'content' which is base64 image.
+                
+                // If we want to support text regeneration, we need to know if ArkChatClient supports it.
+                // Based on HomeViewModel, it seems to focus on image.
+                // But the user request is generic "Regenerate".
+                // If there is no image, we should probably use the text.
+                // For now, let's implement the image logic as it's the most complex and requested feature usually.
+                
+                if (item.imageData == null && item.userInputText.isBlank() && item.recognizedText.isBlank()) {
+                    memoDao.insertMemo(item.copy(isAPIProcessing = false))
+                    return@launch
+                }
+
+                // 2. Call API
+                val apiKey = settingsRepository.aiApiKey.first()
+                val result = ArkChatClient.chatWithImageUrl(
+                    tags = emptyList(),
+                    content = if (item.imageData != null) base64Image else (item.userInputText.ifBlank { item.recognizedText }),
+                    isImage = item.imageData != null,
+                    apiKey = apiKey
+                )
+
+                result.onSuccess { jsonString ->
+                    // 3. Parse JSON
+                    println("AI Regeneration Result: $jsonString")
+
+                    val gson = Gson()
+                    
+                    // Parse the outer layer (OpenAI format)
+                    val rootObj = JsonParser.parseString(jsonString).asJsonObject
+                    val choices = rootObj.getAsJsonArray("choices")
+                    
+                    if (choices.size() > 0) {
+                        val contentJsonStr = choices[0].asJsonObject
+                            .getAsJsonObject("message")
+                            .get("content").asString
+                            
+                        val apiResponse = gson.fromJson(contentJsonStr, ApiResponse::class.java)
+
+                        // 4. Update MemoItem
+                        val updatedItem = item.copy(
+                            title = apiResponse.information.title,
+                            recognizedText = apiResponse.information.summary,
+                            // Ensure we don't exceed 6 tags even if API returns more or existing tags are present
+                            tags = (item.tags + apiResponse.allTags).distinct().take(6).toMutableList(),
+                            apiResponse = apiResponse,
+                            hasAPIResponse = true,
+                            isAPIProcessing = false,
+                            apiProcessedAt = Date()
+                        )
+
+                        // 5. Update DB
+                        memoDao.insertMemo(updatedItem)
+                    } else {
+                        // Restore state if no choices
+                        memoDao.insertMemo(item.copy(isAPIProcessing = false))
+                    }
+                }.onFailure { e ->
+                    e.printStackTrace()
+                    // Restore state on failure
+                    memoDao.insertMemo(item.copy(isAPIProcessing = false))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Restore state on exception
+                memoDao.insertMemo(item.copy(isAPIProcessing = false))
+            }
+        }
+    }
+
+    private fun compressImage(imageData: ByteArray): ByteArray {
+        val options = android.graphics.BitmapFactory.Options()
+        options.inJustDecodeBounds = true
+        android.graphics.BitmapFactory.decodeByteArray(imageData, 0, imageData.size, options)
+
+        // Calculate inSampleSize
+        val maxDimension = 1024 // Max width or height
+        var inSampleSize = 1
+        if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
+            val halfHeight: Int = options.outHeight / 2
+            val halfWidth: Int = options.outWidth / 2
+            while ((halfHeight / inSampleSize) >= maxDimension && (halfWidth / inSampleSize) >= maxDimension) {
+                inSampleSize *= 2
+            }
+        }
+
+        options.inJustDecodeBounds = false
+        options.inSampleSize = inSampleSize
+        val bitmap = android.graphics.BitmapFactory.decodeByteArray(imageData, 0, imageData.size, options)
+
+        val outputStream = java.io.ByteArrayOutputStream()
+        // Compress to JPEG with 80% quality
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, outputStream)
+        return outputStream.toByteArray()
+    }
+
 
 
     class Factory(

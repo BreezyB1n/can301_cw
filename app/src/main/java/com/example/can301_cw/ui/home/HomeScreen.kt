@@ -639,16 +639,24 @@ fun MemoImage(imageData: ByteArray?, modifier: Modifier = Modifier) {
 @Composable
 fun MemoTextContent(item: MemoItem, maxLines: Int = 4) {
     // Determine if we are waiting for AI response
-    // We assume if there is an image and no API response yet, it's processing
     val isAiProcessing = item.imageData != null && !item.hasAPIResponse
 
     Column {
-        // Title
-        val titleText = if (isAiProcessing) "Loading..." else item.title
+        // Title Priority:
+        // 1. item.title (Manual input or AI title)
+        // 2. apiResponse.schedule.title
+        // 3. apiResponse.information.title
+        // 4. "Untitled Memo"
+        val displayTitle = if (isAiProcessing) "Loading..." else {
+            item.title.takeIf { it.isNotBlank() }
+                ?: item.apiResponse?.schedule?.title?.takeIf { it.isNotBlank() }
+                ?: item.apiResponse?.information?.title?.takeIf { it.isNotBlank() }
+                ?: "Untitled Memo"
+        }
         
-        if (titleText.isNotEmpty()) {
+        if (displayTitle.isNotEmpty()) {
             Text(
-                text = titleText,
+                text = displayTitle,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     lineHeight = 22.sp
@@ -658,10 +666,17 @@ fun MemoTextContent(item: MemoItem, maxLines: Int = 4) {
             Spacer(modifier = Modifier.height(8.dp))
         }
 
+        // Content Priority:
+        // 1. AI Summary (apiResponse.information.summary)
+        // 2. User Input Text (item.userInputText)
+        // 3. Recognized Text (item.recognizedText)
         val description = if (isAiProcessing) {
             "Analyzing image content..."
         } else {
-            if (item.recognizedText.isNotEmpty()) item.recognizedText else item.userInputText
+            item.apiResponse?.information?.summary?.takeIf { it.isNotBlank() }
+                ?: item.userInputText.takeIf { it.isNotBlank() }
+                ?: item.recognizedText.takeIf { it.isNotBlank() }
+                ?: "No content available."
         }
 
         if (description.isNotEmpty()) {

@@ -268,7 +268,7 @@ class AddMemoViewModel(
                 }
 
                 val memoItem = MemoItem(
-                    title = state.title,
+                    title = state.title.ifBlank { state.apiResponse?.schedule?.title ?: state.apiResponse?.information?.title ?: "" },
                     userInputText = state.content,
                     recognizedText = state.recognizedText,
                     imagePath = savedImagePath,
@@ -276,7 +276,7 @@ class AddMemoViewModel(
                     apiResponse = state.apiResponse,
                     hasAPIResponse = state.apiResponse != null,
                     createdAt = Date(),
-                    source = if (state.selectedImageUri != null) "IMAGE" else "TEXT"
+                    source = "Manually"
                 )
 
                 memoDao.insertMemo(memoItem)

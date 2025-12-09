@@ -62,6 +62,8 @@ import android.provider.CalendarContract
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.ui.platform.LocalContext
 
+import androidx.compose.material.icons.filled.Refresh
+
 @Composable
 fun MemoDetailScreen(
     viewModel: MemoDetailViewModel,
@@ -77,13 +79,13 @@ fun MemoDetailScreen(
     } else {
         val item = memoItem!!
         val data = item.apiResponse ?: createFallbackApiResponse(item)
-        val isAiProcessing = item.imageData != null && !item.hasAPIResponse
+        val isAiProcessing = item.isAPIProcessing || (item.imageData != null && !item.hasAPIResponse)
         MemoDetailContent(
             onBackClick = onBackClick,
             data = data,
             createdAt = item.createdAt,
-            source = item.source.ifEmpty { "Manual" },
-            isAICompleted = item.hasAPIResponse,
+            source = item.source.ifEmpty { "Manually" },
+            isAICompleted = item.hasAPIResponse && !isAiProcessing,
             imageData = item.imageData,
             isAiProcessing = isAiProcessing,
             originalTitle = item.title,
@@ -91,7 +93,8 @@ fun MemoDetailScreen(
             defaultRemindOffset = defaultRemindOffset,
             onToggleTaskStatus = viewModel::toggleTaskStatus,
             onSetTaskStatus = viewModel::setTaskStatus,
-            onSetTaskReminder = viewModel::setTaskReminder
+            onSetTaskReminder = viewModel::setTaskReminder,
+            onRegenerate = viewModel::regenerateAIAnalysis
         )
     }
 }
@@ -128,7 +131,7 @@ fun MemoDetailContent(
     onBackClick: () -> Unit = {},
     data: ApiResponse,
     createdAt: java.util.Date = java.util.Date(),
-    source: String = "Manual",
+    source: String = "Manually",
     isAICompleted: Boolean = false,
     imageData: ByteArray? = null,
     isAiProcessing: Boolean = false,
@@ -137,12 +140,37 @@ fun MemoDetailContent(
     defaultRemindOffset: Int = 5,
     onToggleTaskStatus: (String) -> Unit = {},
     onSetTaskStatus: (String, TaskStatus) -> Unit = { _, _ -> },
-    onSetTaskReminder: (String, Long) -> Unit = { _, _ -> }
+    onSetTaskReminder: (String, Long) -> Unit = { _, _ -> },
+    onRegenerate: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Info", "Intents")
     var showFullScreenImage by remember { mutableStateOf(false) }
+    var showRegenerateDialog by remember { mutableStateOf(false) }
+
+    if (showRegenerateDialog) {
+        AlertDialog(
+            onDismissRequest = { showRegenerateDialog = false },
+            title = { Text("Regenerate Analysis") },
+            text = { Text("Are you sure you want to regenerate the analysis? This will overwrite the current information and intents.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onRegenerate()
+                        showRegenerateDialog = false
+                    }
+                ) {
+                    Text("Regenerate")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRegenerateDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showFullScreenImage && imageData != null && imageData.isNotEmpty()) {
         Dialog(
@@ -180,6 +208,11 @@ fun MemoDetailContent(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { showRegenerateDialog = true }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Regenerate Analysis")
+                    }
+                }
             )
         },
     ) { paddingValues ->
@@ -294,7 +327,7 @@ fun HeaderSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Title Logic similar to HomeScreen
-        val titleText = if (isAiProcessing) "Loading..." else originalTitle.ifEmpty { data.schedule.title.takeIf { it.isNotEmpty() } ?: data.information.title }
+        val titleText = if (isAiProcessing && originalTitle.isEmpty() && data.schedule.title.isEmpty() && data.information.title.isEmpty()) "Loading..." else originalTitle.ifEmpty { data.schedule.title.takeIf { it.isNotEmpty() } ?: data.information.title }
         
         if (titleText.isNotEmpty()) {
             Text(
@@ -316,7 +349,10 @@ fun HeaderSection(
             Text("Source: $source", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (isAICompleted) {
+            if (isAiProcessing) {
+                Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFFC107)) // Yellow
+                Text("AI Analysis: Regenerating...", style = MaterialTheme.typography.bodySmall, color = Color(0xFFFFC107))
+            } else if (isAICompleted) {
                 Icon(Icons.Default.SmartToy, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF4CAF50)) // Green
                 Text("AI Analysis: Completed", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
             } else {
